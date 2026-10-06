@@ -1,0 +1,50 @@
+:root {
+  --bg: #f6f5f2;
+  --surface: #ffffff;
+  --text: #1d1d1b;
+  --muted: #6b6a66;
+  --border: #e2e0da;
+  --accent: #b5651d;
+  --accent-text: #ffffff;
+  --error: #b42318;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161614;
+    --surface: #201f1d;
+    --text: #ecebe7;
+    --muted: #9b9993;
+    --border: #34322f;
+    --accent: #e08a3c;
+    --accent-text: #161614;
+    --error: #f97066;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); }
+.app { max-width: 1100px; margin: 0 auto; padding: 16px; }
+header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+h1 { font-size: 1.4rem; margin: 0; }
+h2 { font-size: 1.1rem; margin: 0; }
+button, select { font: inherit; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); cursor: pointer; }
+button:disabled { opacity: 0.6; cursor: default; }
+.server-switch { display: inline-flex; }
+.server-switch button { border-radius: 0; margin-left: -1px; }
+.server-switch button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
+.server-switch button:last-child { border-radius: 0 6px 6px 0; }
+.server-switch button.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.toolbar h2 { margin-right: auto; }
+.hint { color: var(--muted); font-size: 0.85rem; }
+.error { color: var(--error); }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { padding: 6px 10px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+th:first-child, td.item { text-align: left; }
+td.item { font-family: ui-monospace, monospace; font-size: 0.85rem; }
+td.num { font-variant-numeric: tabular-nums; }
+.age { display: block; color: var(--muted); font-size: 0.75rem; }
