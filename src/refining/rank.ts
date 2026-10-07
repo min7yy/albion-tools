@@ -1,9 +1,10 @@
 import type { ResourceKind } from '../api/items'
+import type { SalesLookup } from '../api/history'
 import { evaluateRefining, type PriceLookup, type RefiningResult } from './profit'
 import type { Recipe } from './recipes'
 import type { RefiningSettings } from './settings'
 
-export type SortKey = 'profit' | 'margin'
+export type SortKey = 'profit' | 'margin' | 'focus' | 'volume'
 
 export interface RefiningFilters {
   resource: ResourceKind | 'all'
@@ -14,6 +15,8 @@ export interface RefiningFilters {
   hideIncomplete: boolean
   /** Hide rows whose oldest price is older than this many hours. null = any age. */
   maxAgeHours: number | null
+  /** Hide items selling fewer than this many per day in the refining city. null = any. */
+  minDailySales: number | null
   sortBy: SortKey
 }
 
@@ -24,6 +27,7 @@ export const DEFAULT_FILTERS: RefiningFilters = {
   city: 'all',
   hideIncomplete: true,
   maxAgeHours: 24,
+  minDailySales: null,
   sortBy: 'profit',
 }
 
@@ -39,14 +43,31 @@ export function evaluateAll(
   )
 }
 
-/** Applies filters and sorts best first. Rows without a profit sink to the bottom. */
+/**
+ * Applies filters and sorts best first. Rows without a value sink to the bottom.
+ * The sales filter and sort only apply once `sales` has loaded.
+ */
 export function rankResults(
   results: RefiningResult[],
   filters: RefiningFilters,
   now = Date.now(),
+  sales?: SalesLookup,
 ): RefiningResult[] {
   const maxAgeMs = filters.maxAgeHours === null ? null : filters.maxAgeHours * 3600_000
-  const value = (r: RefiningResult) => (filters.sortBy === 'profit' ? r.profit : r.margin)
+  const perDay = (r: RefiningResult) => sales?.(r.recipe.output, r.refineCity)?.perDay ?? null
+  const value = (r: RefiningResult): number | null => {
+    switch (filters.sortBy) {
+      case 'margin':
+        return r.margin
+      case 'focus':
+        // Focus spent on a craft that still loses money is wasted, so those rows sink.
+        return r.profitWithFocus !== null && r.profitWithFocus > 0 ? r.silverPerFocus : null
+      case 'volume':
+        return perDay(r)
+      default:
+        return r.profit
+    }
+  }
   return results
     .filter((r) => filters.resource === 'all' || r.recipe.resource === filters.resource)
     .filter((r) => filters.tier === 'all' || r.recipe.tier === filters.tier)
@@ -59,6 +80,7 @@ export function rankResults(
         r.profit === null ||
         (r.oldestPriceDate !== null && now - r.oldestPriceDate.getTime() <= maxAgeMs),
     )
+    .filter((r) => filters.minDailySales === null || !sales || (perDay(r) ?? 0) >= filters.minDailySales)
     .sort((a, b) => (value(b) ?? -Infinity) - (value(a) ?? -Infinity))
 }
 

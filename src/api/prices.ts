@@ -69,10 +69,12 @@ export function buildPriceUrls(
     locations: locations.join(','),
     qualities: qualities.join(','),
   }).toString()
-  const prefix = `${apiBase}/api/v2/stats/prices/`
-  const suffix = `.json?${query}`
-  const budget = MAX_URL_LENGTH - prefix.length - suffix.length
+  return batchItemUrls(`${apiBase}/api/v2/stats/prices/`, items, `.json?${query}`)
+}
 
+/** Builds prefix + comma-joined items + suffix URLs, splitting items so no URL is too long. */
+export function batchItemUrls(prefix: string, items: string[], suffix: string): string[] {
+  const budget = MAX_URL_LENGTH - prefix.length - suffix.length
   const urls: string[] = []
   let batch: string[] = []
   let length = 0

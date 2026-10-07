@@ -18,6 +18,8 @@ export interface RefiningSettings extends TradeSettings {
   stationFeePer100: number
   /** Use this return rate (0–1) instead of the computed one. null = computed. */
   returnRateOverride: number | null
+  /** Percent your specialisation cuts focus cost by (0 = untrained). */
+  focusCostReduction: number
 }
 
 export const DEFAULT_SETTINGS: RefiningSettings = {
@@ -27,6 +29,7 @@ export const DEFAULT_SETTINGS: RefiningSettings = {
   buyMode: 'instant',
   sellMode: 'order',
   returnRateOverride: null,
+  focusCostReduction: 0,
 }
 
 /** Extra bonus in the city that specialises in refining this resource. */
@@ -63,4 +66,17 @@ export function itemValue(tier: number, enchantment: number): number {
 
 export function stationFee(tier: number, enchantment: number, feePer100: number): number {
   return stationFeeForValue(itemValue(tier, enchantment), feePer100)
+}
+
+/**
+ * Base focus per refine, from the game data (ao-bin-dumps items.json). Every resource
+ * uses the same table, and each enchantment level costs the same as one tier up,
+ * so the index is tier + enchantment - 2.
+ */
+const BASE_FOCUS = [18, 31, 54, 94, 164, 287, 503, 880, 1539, 2694, 4714]
+
+export function focusCost(tier: number, enchantment: number, reductionPercent = 0): number {
+  const base = BASE_FOCUS[tier + enchantment - 2]
+  if (base === undefined) throw new Error(`No focus cost for T${tier}.${enchantment}`)
+  return base * (1 - Math.min(100, Math.max(0, reductionPercent)) / 100)
 }

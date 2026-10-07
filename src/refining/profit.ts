@@ -1,12 +1,21 @@
 import { evaluateProfit, type PriceLookup, type ProfitResult } from '../profit'
 import type { Recipe } from './recipes'
-import { returnRate, stationFee, type RefiningSettings } from './settings'
+import { focusCost, returnRate, stationFee, type RefiningSettings } from './settings'
 
 export type { PriceLookup, IngredientCost } from '../profit'
 
 export interface RefiningResult extends ProfitResult {
   recipe: Recipe
   refineCity: string
+  /** Focus spent per refine when using focus, after your cost reduction. */
+  focusCost: number
+  /**
+   * Extra silver each focus point earns: (profit with focus - profit without) / focus cost.
+   * null when a price is missing or the return rate is overridden.
+   */
+  silverPerFocus: number | null
+  /** Profit per craft when refining with focus. */
+  profitWithFocus: number | null
 }
 
 export interface EvaluateOptions {
@@ -29,15 +38,24 @@ export function evaluateRefining({
   buyCity = refineCity,
   sellCity = refineCity,
 }: EvaluateOptions): RefiningResult {
-  const result = evaluateProfit({
-    output: recipe.output,
-    ingredients: recipe.ingredients,
-    returnRate: settings.returnRateOverride ?? returnRate(recipe.resource, refineCity, settings.useFocus),
-    stationFee: stationFee(recipe.tier, recipe.enchantment, settings.stationFeePer100),
-    prices,
-    settings,
-    buyCity,
-    sellCity,
-  })
-  return { ...result, recipe, refineCity }
+  const evaluate = (useFocus: boolean) =>
+    evaluateProfit({
+      output: recipe.output,
+      ingredients: recipe.ingredients,
+      returnRate: settings.returnRateOverride ?? returnRate(recipe.resource, refineCity, useFocus),
+      stationFee: stationFee(recipe.tier, recipe.enchantment, settings.stationFeePer100),
+      prices,
+      settings,
+      buyCity,
+      sellCity,
+    })
+  const result = evaluate(settings.useFocus)
+  const other = evaluate(!settings.useFocus)
+  const cost = focusCost(recipe.tier, recipe.enchantment, settings.focusCostReduction)
+  const [withFocus, without] = settings.useFocus ? [result, other] : [other, result]
+  const silverPerFocus =
+    settings.returnRateOverride !== null || withFocus.profit === null || without.profit === null || cost <= 0
+      ? null
+      : (withFocus.profit - without.profit) / cost
+  return { ...result, recipe, refineCity, focusCost: cost, silverPerFocus, profitWithFocus: withFocus.profit }
 }
