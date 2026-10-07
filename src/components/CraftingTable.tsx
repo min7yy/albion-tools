@@ -1,5 +1,5 @@
 import { craftingKey } from '../crafting/rank'
-import type { CraftingResult } from '../crafting/evaluate'
+import { citySpecialtyBonus, type CraftingResult } from '../crafting/evaluate'
 import { formatAge, formatPercent, formatSilver, tierLabel } from '../format'
 import { ItemIcon } from './ItemIcon'
 
@@ -49,7 +49,14 @@ export function CraftingTable({ rows, selectedKey, onSelect, limit, showSellCity
                     <span className={`ench e${ench}`}>{tierLabel(tier, ench)}</span> {name}
                   </span>
                 </td>
-                <td>{r.craftCity}</td>
+                <td>
+                  {r.craftCity}
+                  {citySpecialtyBonus(r.craftCity, r.recipe.craft) > 0 && (
+                    <span className="badge" title="This city has a crafting bonus for this item">
+                      bonus
+                    </span>
+                  )}
+                </td>
                 {showSellCity && <td>{r.sellCity}</td>}
                 <td className="num">{formatSilver(r.totalCost)}</td>
                 <td className="num">{formatSilver(r.netRevenue)}</td>

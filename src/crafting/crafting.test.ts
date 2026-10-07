@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CATEGORIES, CRAFT_RECIPES, INGREDIENT_NAMES } from './data'
-import { BLACK_MARKET, craftingReturnRate, evaluateCrafting } from './evaluate'
+import { BLACK_MARKET, citySpecialtyBonus, craftingReturnRate, evaluateCrafting } from './evaluate'
 import {
   DEFAULT_CRAFTING_FILTERS,
   craftingItemIds,
@@ -69,7 +69,8 @@ describe('evaluateCrafting', () => {
   it('prices a craft with returns, station fee and tax', () => {
     const r = evaluateCrafting(sword, 'Lymhurst', 'Lymhurst', prices, DEFAULT_SETTINGS)
     expect(r.grossInputCost).toBe(16 * 100 + 8 * 120)
-    expect(r.returnRate).toBeCloseTo(craftingReturnRate('Lymhurst', false))
+    // Lymhurst is the sword city: 18% + 15% bonus → 24.8% return rate.
+    expect(r.returnRate).toBeCloseTo(1 - 1 / 1.33)
     expect(r.stationFee).toBeCloseTo(384 * 0.1125 * 3)
     expect(r.sellPrice).toBe(4000)
     expect(r.profit).not.toBeNull()
@@ -138,5 +139,27 @@ describe('sell quality', () => {
     expect(lookup('T4_MAIN_SWORD', 'Martlock')?.sellMin).toBe(1600)
     expect(lookup('T4_METALBAR', 'Martlock')?.sellMin).toBe(100)
     expect(qualityLookup(prices, new Set(['T4_MAIN_SWORD']), 1)('T4_MAIN_SWORD', 'Martlock')?.sellMin).toBe(1000)
+  })
+})
+
+describe('city crafting bonuses', () => {
+  it('come from the game data per crafting category', () => {
+    expect(citySpecialtyBonus('Lymhurst', 'sword')).toBe(15)
+    expect(citySpecialtyBonus('Martlock', 'sword')).toBe(0)
+    expect(citySpecialtyBonus('Martlock', 'offhand')).toBe(15)
+    expect(citySpecialtyBonus('Brecilien', 'cape')).toBe(15)
+    expect(citySpecialtyBonus('Lymhurst', undefined)).toBe(0)
+  })
+
+  it('raise the return rate only in the specialty city', () => {
+    expect(craftingReturnRate('Lymhurst', false, 'sword')).toBeCloseTo(1 - 1 / 1.33)
+    expect(craftingReturnRate('Martlock', false, 'sword')).toBeCloseTo(1 - 1 / 1.18)
+    expect(craftingReturnRate('Lymhurst', true, 'sword')).toBeCloseTo(1 - 1 / 1.92)
+    expect(craftingReturnRate(BLACK_MARKET, false, 'sword')).toBe(0)
+  })
+
+  it('every royal city category in the data matches recipes', () => {
+    const crafts = new Set(CRAFT_RECIPES.map((r) => r.craft))
+    expect(crafts.has('sword') && crafts.has('offhand') && crafts.has('cape')).toBe(true)
   })
 })

@@ -1,6 +1,6 @@
 import { BASE_CITY_BONUS, FOCUS_BONUS, evaluateProfit, returnRateForBonus, stationFeeForValue, type PriceLookup, type ProfitResult } from '../profit'
 import type { RefiningSettings } from '../refining/settings'
-import type { CraftRecipe } from './data'
+import { CITY_CRAFTING_BONUSES, type CraftRecipe } from './data'
 
 /** Same knobs as refining: focus, premium, station fee, buy/sell mode, return rate override. */
 export type CraftingSettings = RefiningSettings
@@ -12,12 +12,15 @@ export interface CraftingResult extends ProfitResult {
   craftCity: string
 }
 
-/**
- * Crafting return rate: the 18% royal city bonus, plus focus.
- * City crafting specialties aren't modelled yet; use the return rate override for those.
- */
-export function craftingReturnRate(city: string, useFocus: boolean): number {
-  const bonus = (city === BLACK_MARKET ? 0 : BASE_CITY_BONUS) + (useFocus ? FOCUS_BONUS : 0)
+/** Extra production bonus (%) a city gives this crafting category, e.g. 15 for swords in Lymhurst. */
+export function citySpecialtyBonus(city: string, craft: string | undefined): number {
+  return (craft && CITY_CRAFTING_BONUSES[city]?.[craft]) || 0
+}
+
+/** Crafting return rate: the 18% city bonus, the city's specialty bonus for this item, plus focus. */
+export function craftingReturnRate(city: string, useFocus: boolean, craft?: string): number {
+  const bonus =
+    (city === BLACK_MARKET ? 0 : BASE_CITY_BONUS + citySpecialtyBonus(city, craft)) + (useFocus ? FOCUS_BONUS : 0)
   return returnRateForBonus(bonus)
 }
 
@@ -34,7 +37,7 @@ export function evaluateCrafting(
     output: recipe.id,
     amount: recipe.amount,
     ingredients: recipe.resources.map(([itemId, count, noReturn]) => ({ itemId, count, noReturn: !!noReturn })),
-    returnRate: settings.returnRateOverride ?? craftingReturnRate(craftCity, settings.useFocus),
+    returnRate: settings.returnRateOverride ?? craftingReturnRate(craftCity, settings.useFocus, recipe.craft),
     stationFee: stationFeeForValue(recipe.itemValue, settings.stationFeePer100),
     prices,
     settings: trade,
