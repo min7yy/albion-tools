@@ -1,3 +1,4 @@
+import type { SalesLookup } from '../api/history'
 import { ORDER_SETUP_FEE, SALES_TAX_NO_PREMIUM, SALES_TAX_PREMIUM, type PriceLookup, type TradeSettings } from '../profit'
 
 export const BLACK_MARKET = 'Black Market'
@@ -71,7 +72,7 @@ export function flipsForItem(
   return flips
 }
 
-export type FlipSortKey = 'profit' | 'margin'
+export type FlipSortKey = 'profit' | 'margin' | 'volume'
 
 export interface FlipFilters {
   /** "resources" or a crafting category id. */
@@ -87,6 +88,8 @@ export interface FlipFilters {
   /** Hide flips below this margin (0.05 = 5%). */
   minMargin: number
   maxAgeHours: number | null
+  /** Hide flips whose item sells fewer than this many per day in the sell market. null = any. */
+  minDailySales: number | null
   sortBy: FlipSortKey
 }
 
@@ -100,13 +103,23 @@ export const DEFAULT_FLIP_FILTERS: FlipFilters = {
   bestRouteOnly: true,
   minMargin: 0.05,
   maxAgeHours: 6,
+  minDailySales: 1,
   sortBy: 'profit',
 }
 
-/** Filters, keeps the best route per item if asked, and sorts best first. */
-export function rankFlips(flips: Flip[], filters: FlipFilters, now = Date.now()): Flip[] {
+/** Items sold per day in the flip's sell market, or null before sales data loads. */
+export function flipVolume(f: Flip, sales: SalesLookup | undefined): number | null {
+  return sales ? (sales(f.itemId, f.sellMarket)?.perDay ?? 0) : null
+}
+
+/**
+ * Filters, keeps the best route per item if asked, and sorts best first.
+ * The sales filter and sort only apply once `sales` has loaded.
+ */
+export function rankFlips(flips: Flip[], filters: FlipFilters, now = Date.now(), sales?: SalesLookup): Flip[] {
   const maxAgeMs = filters.maxAgeHours === null ? null : filters.maxAgeHours * 3600_000
-  const key = (f: Flip) => (filters.sortBy === 'profit' ? f.profit : f.margin)
+  const key = (f: Flip) =>
+    filters.sortBy === 'margin' ? f.margin : filters.sortBy === 'volume' ? (flipVolume(f, sales) ?? 0) : f.profit
   let kept = flips
     .filter((f) => filters.buyMarket === 'all' || f.buyMarket === filters.buyMarket)
     .filter((f) => filters.sellMarket === 'all' || f.sellMarket === filters.sellMarket)
@@ -114,6 +127,7 @@ export function rankFlips(flips: Flip[], filters: FlipFilters, now = Date.now())
     .filter(
       (f) => maxAgeMs === null || (f.oldestPriceDate !== null && now - f.oldestPriceDate.getTime() <= maxAgeMs),
     )
+    .filter((f) => filters.minDailySales === null || !sales || flipVolume(f, sales)! >= filters.minDailySales)
     .sort((a, b) => key(b) - key(a))
   if (filters.bestRouteOnly) {
     const seen = new Set<string>()
