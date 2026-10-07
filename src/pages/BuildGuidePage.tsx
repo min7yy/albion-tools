@@ -5,10 +5,12 @@ import { budgetRange, evaluateWeapons, indexQualityPrices, QUALITIES, QUALITY_NA
 import { WEAPONS, weaponItemIds } from '../buildguide/weapons'
 import { WEAPON_TYPES, weaponTypeLabel } from '../buildguide/types'
 import { SLIDER_STEPS, budgetToSlider, sliderToBudget } from '../buildguide/slider'
+import { FIGHT_FILTERS, SORT_MODES, rankWithMeta, weaponMeta, type FightFilter, type SortMode } from '../buildguide/meta'
+import { useMeta } from '../useMeta'
 import { ItemIcon } from '../components/ItemIcon'
 import { usePrices } from '../usePrices'
 import { useStoredState, withDefaults } from '../useStoredState'
-import { formatAge, formatSilver, tierLabel } from '../format'
+import { formatAge, formatPercent, formatSilver, tierLabel } from '../format'
 
 interface BuildGuideSettings {
   budget: number
@@ -16,6 +18,8 @@ interface BuildGuideSettings {
   hands: 'any' | '1h' | '2h'
   cities: string[]
   maxAgeHours: number
+  fight: FightFilter
+  sort: SortMode
 }
 
 const DEFAULTS: BuildGuideSettings = {
@@ -24,6 +28,8 @@ const DEFAULTS: BuildGuideSettings = {
   hands: 'any',
   cities: [...MARKET_CITIES],
   maxAgeHours: 48,
+  fight: 'all',
+  sort: 'recommended',
 }
 const AGE_OPTIONS = [6, 24, 48, 168]
 
@@ -69,7 +75,12 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
     [weapons, prices, settings.cities, settings.maxAgeHours, fetchedAt],
   )
   const range = useMemo(() => budgetRange(values), [values])
-  const rows = useMemo(() => rankForBudget(values, settings.budget), [values, settings.budget])
+  const { summary, error: metaError } = useMeta(server)
+  const meta = useMemo(() => (summary ? weaponMeta(summary, settings.fight) : null), [summary, settings.fight])
+  const rows = useMemo(
+    () => rankWithMeta(rankForBudget(values, settings.budget), meta, settings.sort),
+    [values, settings.budget, meta, settings.sort],
+  )
   const detail = rows.find((r) => r.weapon.base === selected) ?? values.find((v) => v.weapon.base === selected)
 
   const toggleCity = (city: string) =>
@@ -150,6 +161,26 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                 <option value="2h">Two-handed</option>
               </select>
             </label>
+            <label>
+              Fight size
+              <select value={settings.fight} onChange={(e) => set({ fight: e.target.value as FightFilter })}>
+                {FIGHT_FILTERS.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Sort by
+              <select value={settings.sort} onChange={(e) => set({ sort: e.target.value as SortMode })}>
+                {SORT_MODES.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
           <div className="refresh">
             <span className="hint">
@@ -161,6 +192,7 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
           </div>
         </div>
         {error && <p className="error">{error}</p>}
+        {metaError && <p className="hint">{metaError}. Ranking by item power only.</p>}
 
         <div className={`results${detail ? ' with-detail' : ''}`}>
           {loading && !prices.length ? (
@@ -180,6 +212,8 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                     <th>Weapon</th>
                     <th>Version</th>
                     <th className="num">Item power</th>
+                    <th className="num" title="Share of all weapons seen in recent kills for this fight size">Popularity</th>
+                    <th className="num" title="Kills as a share of kills plus deaths">Kill share</th>
                     <th className="num">Price</th>
                     <th>City</th>
                     <th className="num">Price age</th>
@@ -204,6 +238,8 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                         <Version o={r.best} />
                       </td>
                       <td className="num strong">{r.best.itemPower}</td>
+                      <td className="num">{r.meta ? formatPercent(r.meta.popularity) : <span className="muted">–</span>}</td>
+                      <td className="num muted">{r.meta ? formatPercent(r.meta.killRatio, 0) : '–'}</td>
                       <td className="num">{formatSilver(r.best.price)}</td>
                       <td>{r.best.city}</td>
                       <td className="num muted">{formatAge(r.best.date)}</td>
@@ -243,9 +279,11 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
           )}
         </div>
         <p className="hint footer">
-          Ranked by item power for the price, at any quality, using the cheapest recent sell order in the cities you
-          picked. It doesn't include mastery or spec bonuses, and it doesn't say which weapons are strong in the current
-          meta yet. One-handed weapons also need an off-hand.
+          Each weapon shows the most item power your budget buys, at any quality, from the cheapest recent sell order in
+          the cities you picked. Popularity and kill share come from a sample of recent kills
+          {summary ? ` (${summary.events.toLocaleString()} kills since ${summary.from}, updated ${formatAge(new Date(summary.updatedAt))})` : ''}
+          . Recommended weighs item power and popularity equally. Group kills credit every attacker, so compare kill share
+          within one fight size. Mastery and spec bonuses aren't included, and one-handed weapons also need an off-hand.
         </p>
       </main>
     </div>

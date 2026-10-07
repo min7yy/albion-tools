@@ -30,7 +30,9 @@ and force-pushes a single commit to the `meta-data` branch:
   shoes and capes seen with each weapon
 - `<server>-state.json` – per-day counts carried between runs
 
-To try it locally: `node --experimental-strip-types scripts/collect-meta.ts out`.
+To try it locally: `node --experimental-strip-types scripts/collect-meta.ts out`. The Build guide
+loads `<server>.json` from raw.githubusercontent.com for its popularity, kill share and
+Recommended ranking (`src/buildguide/meta.ts`).
 
 ## Layout
 
