@@ -19,3 +19,7 @@ npm run build   # static build in dist/
 - `src/api/prices.ts` – price fetcher (batching, normalisation of missing prices/dates)
 - `src/api/items.ts` – resource item ids (ore, hide, fiber, wood, stone and refined goods)
 - `src/App.tsx` – server switch and a price check table
+
+## UI conventions
+
+The app is dark mode only. Colours are CSS variables on `:root` in `src/index.css`; new pages should use those tokens rather than hard-coded colours.

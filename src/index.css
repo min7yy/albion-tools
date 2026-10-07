@@ -1,27 +1,17 @@
 :root {
-  --bg: #f6f5f2;
-  --surface: #ffffff;
-  --text: #1d1d1b;
-  --muted: #6b6a66;
-  --border: #e2e0da;
-  --accent: #b5651d;
-  --accent-text: #ffffff;
-  --error: #b42318;
+  /* Dark theme only: every page uses these tokens. */
+  color-scheme: dark;
+  --bg: #161614;
+  --surface: #201f1d;
+  --text: #ecebe7;
+  --muted: #9b9993;
+  --border: #34322f;
+  --accent: #e08a3c;
+  --accent-text: #161614;
+  --error: #f97066;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
   background: var(--bg);
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #161614;
-    --surface: #201f1d;
-    --text: #ecebe7;
-    --muted: #9b9993;
-    --border: #34322f;
-    --accent: #e08a3c;
-    --accent-text: #161614;
-    --error: #f97066;
-  }
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); }
