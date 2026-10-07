@@ -127,6 +127,32 @@ export function cheapestCity(
   return best
 }
 
+/** Why a weapon has no set, in a few words, for the list under the results. */
+export function noSetReason(
+  weapon: Weapon,
+  gear: Gear[][],
+  prices: QualityPriceLookup,
+  settings: OfferSettings,
+  spec: number,
+): string {
+  const anywhere = cityPieces(weapon, gear, prices, settings, spec)
+  const missing = anywhere.find((p) => !p.frontier.length)
+  if (missing) return missing.slot === 'MainHand' ? 'not for sale with recent prices' : `no ${SLOT_NAMES[missing.slot]} for sale with recent prices`
+  const complete = settings.cities.some((city) =>
+    cityPieces(weapon, gear, prices, { ...settings, cities: [city] }, spec).every((p) => p.frontier.length),
+  )
+  return complete ? 'target out of reach' : 'no single city sells every piece'
+}
+
+const SLOT_NAMES: Record<SetSlot, string> = {
+  MainHand: 'weapon',
+  OffHand: 'off-hand',
+  Head: 'helmet',
+  Armor: 'armour',
+  Shoes: 'shoes',
+  Cape: 'cape',
+}
+
 /** Item power above the pick that still counts as the same step. */
 const LADDER_SPREAD = 25
 /** The cheapest few are what matter. */

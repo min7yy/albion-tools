@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Price } from '../api/prices'
 import type { Gear } from './gear'
 import { masteryModifier, specFromLevels, specItemPower } from './mastery'
-import { cheapestCity, cheapestForTarget, equivalenceLadder, type SetPiece } from './target'
+import { cheapestCity, cheapestForTarget, equivalenceLadder, noSetReason, type SetPiece } from './target'
 import { indexQualityPrices, type WeaponOption } from './value'
 import type { Weapon } from './weapons'
 
@@ -89,6 +89,14 @@ describe('cheapestCity and equivalenceLadder', () => {
     const set = cheapestCity(weapon, gearSlots, lookup, settings, 100, 900)!
     expect(set.picks[0].option).toMatchObject({ tier: 8, itemPower: 1220 })
     expect(set.picks.find((p) => p.piece.slot === 'Cape')?.option.itemPower).toBe(700)
+  })
+
+  it('says why a weapon has no set', () => {
+    expect(noSetReason(weapon, gearSlots, lookup, settings, 0)).toBe('target out of reach')
+    const noCape = [...gearSlots.slice(0, 3), gear('Cape', 'CAPE_Y')]
+    expect(noSetReason(weapon, noCape, lookup, settings, 0)).toBe('no cape for sale with recent prices')
+    const split = indexQualityPrices(rows.filter((r) => !(r.itemId === 'T4_CAPE_X' && r.city === 'Lymhurst')).filter((r) => r.city === 'Lymhurst' || r.itemId !== 'T4_HEAD_X'))
+    expect(noSetReason({ ...weapon, variants: [[8, 0, 1100]] }, gearSlots, split, settings, 0)).toBe('no single city sells every piece')
   })
 
   it('lists equivalent versions per city', () => {

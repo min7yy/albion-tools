@@ -9,7 +9,7 @@ import { FIGHT_FILTERS, SORT_MODES, rankWithMeta, weaponMeta, type FightFilter, 
 import { useMeta } from '../useMeta'
 import { GEAR, SLOT_LABELS, gearItemIds, type Gear } from '../buildguide/gear'
 import { usualGear } from '../buildguide/sets'
-import { cheapestCity, equivalenceLadder, type SetPiece, type TargetSet } from '../buildguide/target'
+import { cheapestCity, equivalenceLadder, noSetReason, type SetPiece, type TargetSet } from '../buildguide/target'
 import { specFromLevels } from '../buildguide/mastery'
 import { ItemIcon } from '../components/ItemIcon'
 import { HowItWorks, MoreOptions } from '../components/MoreOptions'
@@ -172,14 +172,24 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
   const lookup = useMemo(() => indexQualityPrices(prices), [prices])
   const spec = specFromLevels(settings.mastery, settings.spec)
 
-  const rows = useMemo(() => {
+  const [rows, missing] = useMemo(() => {
     const list: Row[] = []
+    const none: Weapon[] = []
     for (const weapon of weapons) {
       const found = cheapestCity(weapon, gearFor.get(weapon.base) ?? [], lookup, offers, spec, settings.target)
       if (found) list.push({ weapon, price: found.price, set: found })
+      else none.push(weapon)
     }
-    return rankWithMeta(list, meta, settings.sort)
+    return [rankWithMeta(list, meta, settings.sort), none] as const
   }, [weapons, gearFor, lookup, offers, spec, settings.target, meta, settings.sort])
+  // Only worked out once prices are in, and only for the weapons left out.
+  const missingReasons = useMemo(
+    () =>
+      prices.length
+        ? missing.map((w) => ({ weapon: w, reason: noSetReason(w, gearFor.get(w.base) ?? [], lookup, offers, spec) }))
+        : [],
+    [missing, prices.length, gearFor, lookup, offers, spec],
+  )
 
   const toggleCity = (city: string) =>
     set({
@@ -403,7 +413,7 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                                     <ItemIcon id={option.itemId} size={24} />
                                     {item?.name ?? piece.name}
                                     {piece.rank > 0 && (
-                                      <span className="tag-2h" title="The usual item isn't sold here, so this is the next most common one">
+                                      <span className="tag-2h" title="The usual item isn't sold here, so this is the next most common one or a common substitute">
                                         alt
                                       </span>
                                     )}
@@ -442,10 +452,15 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
           })}
         </ol>
       )}
+      {rows.length > 0 && missingReasons.length > 0 && (
+        <p className="hint missing-builds">
+          Not shown: {missingReasons.map((m) => `${m.weapon.name} (${m.reason})`).join(', ')}.
+        </p>
+      )}
       <HowItWorks>
         Weapons are grouped by the role they usually play in group fights (the game files don't tag roles, so this is the
         usual community split). Each weapon is paired with the helmet, armour, shoes, cape and off-hand most often seen with it in recent kills (or
-        the next most common when a city doesn't sell it), and the whole set is bought in one city: the cheapest city
+        the next most common, then common non-artifact gear, when a city doesn't sell it), and the whole set is bought in one city: the cheapest city
         whose versions reach your target average item power. The average counts six slots as the game does, with a
         two-handed weapon filling the off-hand too, and includes your spec. Item power, the tier bonus (+5% of spec per
         tier above T4, none on capes) and the spec numbers come from the game's own files. T8.0, T7.1, T6.2, T5.3 and T4.4
