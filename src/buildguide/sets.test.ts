@@ -13,7 +13,7 @@ function opt(itemPower: number, price: number): WeaponOption {
   return { itemId: `X${itemPower}`, tier: 4, ench: 0, quality: 1, itemPower, price, city: 'Martlock', date: new Date() }
 }
 function piece(slot: SetPiece['slot'], ...options: WeaponOption[]): SetPiece {
-  return { slot, base: slot, name: slot, frontier: options }
+  return { slot, base: slot, name: slot, frontier: options, rank: 0 }
 }
 
 describe('usualGear', () => {
@@ -35,10 +35,10 @@ describe('usualGear', () => {
     },
   }
 
-  it('picks the most common known item per slot, with no off-hand for two-handed weapons', () => {
-    expect(usualGear(claymore, summary).map((g) => [g.slot, g.base])).toEqual([
-      ['Head', 'HEAD_PLATE_SET1'],
-      ['Armor', 'ARMOR_PLATE_SET1'],
+  it('lists known items per slot, most common first, with no off-hand for two-handed weapons', () => {
+    expect(usualGear(claymore, summary).map((slot) => slot.map((g) => [g.slot, g.base]))).toEqual([
+      [['Head', 'HEAD_PLATE_SET1']],
+      [['Armor', 'ARMOR_PLATE_SET1']],
     ])
     expect(usualGear(sword, summary)).toEqual([])
   })
@@ -105,7 +105,7 @@ describe('planSets', () => {
   const settings = { cities: ['Martlock', 'Lymhurst'], maxAgeHours: 24, now: date.getTime() }
 
   it('buys every piece in the same city', () => {
-    const plans = planSets(weapon, [helmet], lookup, settings)
+    const plans = planSets(weapon, [[helmet]], lookup, settings)
     // Mixing cities would cost 1,000 + 500; within one city the cheapest set is Lymhurst at 4,500.
     expect(bestSetAnyCity(plans, 2000)).toBeNull()
     const set = bestSetAnyCity(plans, 5100)
@@ -117,14 +117,25 @@ describe('planSets', () => {
   })
 
   it('prefers a city that sells the whole set over one missing a piece', () => {
-    const plans = planSets(weapon, [helmet], lookup, { ...settings, cities: ['Martlock', 'Lymhurst'] })
-    const onlyWeapon = planSets(weapon, [{ ...helmet, base: 'HEAD_NONE' }], lookup, settings)
+    const plans = planSets(weapon, [[helmet]], lookup, settings)
+    const onlyWeapon = planSets(weapon, [[{ ...helmet, base: 'HEAD_NONE' }]], lookup, settings)
     expect(bestSetAnyCity(onlyWeapon, 10_000)?.missing).toEqual(['Head'])
     expect(bestSetAnyCity(plans, 10_000)?.missing).toEqual([])
   })
 
+  it('swaps in the next most common item when a city does not sell the usual one', () => {
+    const usual = { ...helmet, base: 'HEAD_NONE' }
+    const plans = planSets(weapon, [[usual, helmet]], lookup, settings)
+    const set = bestSetAnyCity(plans, 10_000)
+    expect(set?.missing).toEqual([])
+    expect(set?.picks[1].piece).toMatchObject({ base: 'HEAD_PLATE_SET1', rank: 1 })
+    // Where the usual item is sold, it is kept.
+    const kept = planSets(weapon, [[helmet, usual]], lookup, settings)
+    expect(bestSetAnyCity(kept, 10_000)?.picks[1].piece.rank).toBe(0)
+  })
+
   it('adds the mastery share of spec to higher-tier weapons', () => {
-    const plans = planSets(weapon, [helmet], lookup, settings, 100)
+    const plans = planSets(weapon, [[helmet]], lookup, settings, 100)
     const set = bestSetAnyCity(plans, 7000)
     expect(set?.picks[0].option.itemPower).toBe(905)
   })
