@@ -28,8 +28,12 @@ Pull requests run lint, tests and a build (`.github/workflows/ci.yml`).
 - `src/refining/settings.ts` – return rate, focus, station fee and market tax settings
 - `src/refining/profit.ts` – profit per refined item with a full cost breakdown
 - `src/refining/rank.ts` – evaluates every recipe in every royal city, then filters and sorts
-- `src/components/` – settings panel, filters, ranked table and cost breakdown
-- `src/App.tsx` – the refining page and server switch
+- `src/profit.ts` – shared profit engine (returns, station fee, tax) used by refining and crafting
+- `src/crafting/` – crafting recipes, evaluation and ranking
+- `src/data/crafting.json` – generated recipe data; rebuild with `node scripts/build-crafting-data.mjs`
+- `src/components/` – settings panel, filters, ranked tables and cost breakdown
+- `src/pages/` – the Refining and Crafting pages
+- `src/App.tsx` – header, page tabs and server switch
 
 ## UI conventions
 

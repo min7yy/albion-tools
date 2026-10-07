@@ -58,7 +58,7 @@ label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--t
 table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
 th, td { padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
 th { color: var(--muted); font-weight: 600; font-size: 0.8rem; }
-td.num, th:nth-child(n+4) { text-align: right; font-variant-numeric: tabular-nums; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
 td.strong { font-weight: 600; }
 table.ranked tbody tr { cursor: pointer; }
 table.ranked tbody tr:hover { background: var(--hover); }
@@ -82,3 +82,11 @@ table.breakdown tr.total td { font-weight: 600; border-bottom: none; }
   .settings, .detail { position: static; }
   .detail { order: -1; }
 }
+.brand { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.tabs { display: flex; gap: 4px; }
+.tabs a { color: var(--muted); text-decoration: none; padding: 6px 12px; border-radius: 6px; font-weight: 500; }
+.tabs a:hover { color: var(--text); background: var(--hover); }
+.tabs a.active { color: var(--text); background: var(--selected); }
+.item-cell { display: inline-flex; align-items: center; gap: 8px; }
+.item-icon { flex: none; }
+th.num { text-align: right; }

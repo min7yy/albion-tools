@@ -1,19 +1,21 @@
 import type { ResourceKind } from '../api/items'
 import type { MarketCity } from '../api/cities'
+import {
+  BASE_CITY_BONUS,
+  FOCUS_BONUS,
+  returnRateForBonus,
+  stationFeeForValue,
+  type TradeSettings,
+} from '../profit'
 
-export type TradeMode = 'instant' | 'order'
+export type { TradeMode } from '../profit'
+export { BASE_CITY_BONUS, FOCUS_BONUS } from '../profit'
 
-export interface RefiningSettings {
+export interface RefiningSettings extends TradeSettings {
   /** Refine with focus (adds a large production bonus). */
   useFocus: boolean
-  /** Premium halves the sales tax (4% instead of 8%). */
-  premium: boolean
   /** Station usage fee in silver per 100 nutrition, as shown at the station. */
   stationFeePer100: number
-  /** instant: buy from the cheapest sell order. order: place a buy order at the top buy price. */
-  buyMode: TradeMode
-  /** instant: sell to the top buy order. order: list a sell order at the cheapest sell price. */
-  sellMode: TradeMode
   /** Use this return rate (0–1) instead of the computed one. null = computed. */
   returnRateOverride: number | null
 }
@@ -27,11 +29,8 @@ export const DEFAULT_SETTINGS: RefiningSettings = {
   returnRateOverride: null,
 }
 
-/** Production bonus (in %) every royal city gives for refining. */
-export const BASE_CITY_BONUS = 18
 /** Extra bonus in the city that specialises in refining this resource. */
 export const SPECIALTY_BONUS = 40
-export const FOCUS_BONUS = 59
 
 export const REFINING_SPECIALTY: Record<ResourceKind, MarketCity> = {
   ore: 'Thetford',
@@ -40,11 +39,6 @@ export const REFINING_SPECIALTY: Record<ResourceKind, MarketCity> = {
   wood: 'Fort Sterling',
   stone: 'Bridgewatch',
 }
-
-export const SALES_TAX_PREMIUM = 0.04
-export const SALES_TAX_NO_PREMIUM = 0.08
-/** Charged when placing a buy or sell order, on top of sales tax. */
-export const ORDER_SETUP_FEE = 0.025
 
 /**
  * Resource return rate for refining in a city: 1 - 1 / (1 + bonus / 100).
@@ -56,7 +50,7 @@ export function returnRate(resource: ResourceKind, city: string, useFocus: boole
   let bonus = isRoyal ? BASE_CITY_BONUS : 0
   if (REFINING_SPECIALTY[resource] === city) bonus += SPECIALTY_BONUS
   if (useFocus) bonus += FOCUS_BONUS
-  return 1 - 1 / (1 + bonus / 100)
+  return returnRateForBonus(bonus)
 }
 
 /**
@@ -68,6 +62,5 @@ export function itemValue(tier: number, enchantment: number): number {
 }
 
 export function stationFee(tier: number, enchantment: number, feePer100: number): number {
-  const nutrition = itemValue(tier, enchantment) * 0.1125
-  return (nutrition * feePer100) / 100
+  return stationFeeForValue(itemValue(tier, enchantment), feePer100)
 }

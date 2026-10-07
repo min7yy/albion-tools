@@ -39,7 +39,7 @@ export function SettingsPanel({ settings, onChange, onReset }: Props) {
         </select>
       </label>
       <label>
-        Sell refined
+        Sell items
         <select value={settings.sellMode} onChange={(e) => set('sellMode', e.target.value as TradeMode)}>
           <option value="order">With sell orders</option>
           <option value="instant">Instantly (buy orders)</option>

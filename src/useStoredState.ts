@@ -26,3 +26,9 @@ export function useStoredState<T>(
   }, [key, value])
   return [value, setValue]
 }
+
+/** Validator for saved objects: fills in any fields added since they were saved. */
+export function withDefaults<T extends object>(defaults: T) {
+  return (saved: unknown): T =>
+    saved && typeof saved === 'object' ? { ...defaults, ...(saved as Partial<T>) } : defaults
+}
