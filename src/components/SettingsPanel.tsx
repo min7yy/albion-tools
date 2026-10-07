@@ -13,8 +13,7 @@ export function SettingsPanel({ settings, onChange, onReset, showFocusCost = tru
     onChange({ ...settings, [key]: value })
 
   return (
-    <fieldset className="panel settings">
-      <legend>Settings</legend>
+    <div className="option-group">
       <label className="check">
         <input type="checkbox" checked={settings.useFocus} onChange={(e) => set('useFocus', e.target.checked)} />
         Use focus
@@ -86,6 +85,6 @@ export function SettingsPanel({ settings, onChange, onReset, showFocusCost = tru
       <button type="button" className="link" onClick={onReset}>
         Reset settings
       </button>
-    </fieldset>
+    </div>
   )
 }

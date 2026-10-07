@@ -9,8 +9,7 @@ interface Props {
 export function TradeSettingsPanel({ settings, onChange }: Props) {
   const set = <K extends keyof TradeSettings>(key: K, value: TradeSettings[K]) => onChange({ ...settings, [key]: value })
   return (
-    <fieldset className="panel settings">
-      <legend>Settings</legend>
+    <div className="option-group">
       <label className="check">
         <input type="checkbox" checked={settings.premium} onChange={(e) => set('premium', e.target.checked)} />
         Premium (4% tax)
@@ -29,10 +28,7 @@ export function TradeSettingsPanel({ settings, onChange }: Props) {
           <option value="instant">Instantly (buy orders)</option>
         </select>
       </label>
-      <p className="hint">
-        Selling to the Black Market is always instant. Instant buys and sells are the safest numbers; orders earn more
-        but can take a while to fill.
-      </p>
-    </fieldset>
+      <p className="hint">Selling to the Black Market is always instant. Orders earn more but can take a while to fill.</p>
+    </div>
   )
 }
