@@ -2,18 +2,9 @@ import { describe, expect, it } from 'vitest'
 import type { Price } from '../api/prices'
 import type { Gear } from './gear'
 import { masteryModifier, specFromLevels, specItemPower } from './mastery'
-import { cheapestCity, cheapestForTarget, equivalenceLadder, noSetReason, pieceFloor, type SetPiece } from './target'
-import { indexQualityPrices, type WeaponOption } from './value'
+import { BAND, bandOptions, buildSet, equivalenceLadder, noSetReason, slotCentre } from './target'
+import { indexQualityPrices } from './value'
 import type { Weapon } from './weapons'
-
-const claymore: Weapon = { base: '2H_CLAYMORE', name: 'Claymore', sub: 'sword', twoHanded: true, variants: [] }
-
-function opt(itemPower: number, price: number): WeaponOption {
-  return { itemId: `X${itemPower}`, tier: 4, ench: 0, quality: 1, itemPower, price, city: 'Martlock', date: new Date() }
-}
-function piece(slot: SetPiece['slot'], ...options: WeaponOption[]): SetPiece {
-  return { slot, base: slot, name: slot, frontier: options, rank: 0 }
-}
 
 describe('mastery', () => {
   it('adds 5% of spec per tier above T4, except on capes', () => {
@@ -30,31 +21,6 @@ describe('mastery', () => {
   })
 })
 
-describe('cheapestForTarget', () => {
-  // Two-handed: weapon counts twice, so five pieces fill the six slots.
-  const pieces = [
-    piece('MainHand', opt(700, 1000), opt(800, 3000)),
-    piece('Head', opt(700, 100), opt(800, 500)),
-    piece('Armor', opt(700, 100), opt(800, 900)),
-    piece('Shoes', opt(700, 100), opt(800, 400)),
-    piece('Cape', opt(700, 100)),
-  ]
-
-  it('finds the cheapest set whose average reaches the target', () => {
-    expect(cheapestForTarget(claymore, 'Martlock', pieces, 700)).toMatchObject({ price: 1400, itemPower: 700 })
-    const set = cheapestForTarget(claymore, 'Martlock', pieces, 733)!
-    // Needs +200 summed: head (+100, 400) and shoes (+100, 300) = 700 extra beats the weapon (2,000).
-    expect(set.picks.map((p) => p.option.itemPower)).toEqual([700, 800, 700, 800, 700])
-    expect(set).toMatchObject({ city: 'Martlock', price: 2100, itemPower: 733 })
-  })
-
-  it('returns nothing when the target is out of reach or a slot has no prices', () => {
-    expect(cheapestForTarget(claymore, 'Martlock', pieces, 900)).toBeNull()
-    expect(cheapestForTarget(claymore, 'Martlock', [...pieces.slice(0, 4), piece('Cape')], 700)).toBeNull()
-    expect(cheapestForTarget(claymore, 'Martlock', pieces.slice(0, 4), 700)).toBeNull()
-  })
-})
-
 const date = new Date('2026-10-07T12:00:00Z')
 const price = (itemId: string, city: string, sellMin: number, quality = 1): Price => ({
   itemId,
@@ -66,67 +32,104 @@ const price = (itemId: string, city: string, sellMin: number, quality = 1): Pric
   buyMaxDate: null,
 })
 const settings = { cities: ['Martlock', 'Lymhurst'], maxAgeHours: 24, now: date.getTime() }
+const tiers: Weapon['variants'] = [
+  [4, 0, 700],
+  [5, 0, 800],
+  [6, 0, 900],
+  [8, 3, 1400],
+]
+const weapon: Weapon = { base: '2H_CLAYMORE', name: 'Claymore', sub: 'sword', twoHanded: true, variants: tiers }
+const gear = (slot: Gear['slot'], base: string): Gear => ({ base, name: base, slot, variants: tiers })
+const gearSlots = [[gear('Head', 'HEAD_X')], [gear('Armor', 'ARMOR_X')], [gear('Shoes', 'SHOES_X')], [gear('Cape', 'CAPE_X')]]
+const id = (base: string, tier: number, ench = 0) => `T${tier}_${base}${ench ? `@${ench}` : ''}`
 
-describe('cheapestCity and equivalenceLadder', () => {
-  const weapon: Weapon = { ...claymore, variants: [[4, 0, 700], [4, 4, 1100], [8, 0, 1100]] }
-  const gear = (slot: Gear['slot'], base: string): Gear[] => [{ base, name: base, slot, variants: [[4, 0, 700]] }]
-  const gearSlots = [gear('Head', 'HEAD_X'), gear('Armor', 'ARMOR_X'), gear('Shoes', 'SHOES_X'), gear('Cape', 'CAPE_X')]
-  const rows: Price[] = []
-  for (const city of settings.cities) for (const g of ['HEAD_X', 'ARMOR_X', 'SHOES_X', 'CAPE_X']) rows.push(price(`T4_${g}`, city, 100))
-  rows.push(price('T4_2H_CLAYMORE', 'Martlock', 1000), price('T4_2H_CLAYMORE@4', 'Martlock', 9000))
-  rows.push(price('T8_2H_CLAYMORE', 'Lymhurst', 8000))
-  const lookup = indexQualityPrices(rows)
-
-  it('buys the whole set in the cheapest city that reaches the target', () => {
-    // Weapon at 1100 lifts the average to (2×1100 + 4×700) / 6 = 833.
-    const set = cheapestCity(weapon, gearSlots, lookup, settings, 0, 830)!
-    expect(set).toMatchObject({ city: 'Lymhurst', price: 8400, itemPower: 833 })
-    expect(set.picks.every((p) => p.option.city === 'Lymhurst')).toBe(true)
-  })
-
-  it('counts spec with the tier bonus', () => {
-    // With 100 spec the T8 weapon gets 120 and the T4 armour 100; the cape gets none.
-    const set = cheapestCity(weapon, gearSlots, lookup, settings, 100, 900)!
-    expect(set.picks[0].option).toMatchObject({ tier: 8, itemPower: 1220 })
-    expect(set.picks.find((p) => p.piece.slot === 'Cape')?.option.itemPower).toBe(700)
-  })
-
-  it('says why a weapon has no set', () => {
-    expect(noSetReason(weapon, gearSlots, lookup, settings, 0)).toBe('target out of reach')
-    const noCape = [...gearSlots.slice(0, 3), gear('Cape', 'CAPE_Y')]
-    expect(noSetReason(weapon, noCape, lookup, settings, 0)).toBe('no cape for sale with recent prices')
-    const split = indexQualityPrices(rows.filter((r) => !(r.itemId === 'T4_CAPE_X' && r.city === 'Lymhurst')).filter((r) => r.city === 'Lymhurst' || r.itemId !== 'T4_HEAD_X'))
-    expect(noSetReason({ ...weapon, variants: [[8, 0, 1100]] }, gearSlots, split, settings, 0)).toBe('no single city sells every piece')
-  })
-
-  it('lists equivalent versions per city', () => {
-    const ladder = equivalenceLadder(weapon, 'MainHand', 1100, lookup, settings, 0)
-    expect(ladder.map((r) => [r.tier, r.ench, Object.fromEntries(r.prices)])).toEqual([
-      [8, 0, { Lymhurst: 8000 }],
-      [4, 4, { Martlock: 9000 }],
-    ])
+describe('slotCentre', () => {
+  it('puts capes lower by the spec they miss and lifts the rest so the average stays on target', () => {
+    expect(slotCentre('Head', 1100, 0)).toBe(1100)
+    expect(slotCentre('Head', 1100, 120)).toBe(1122)
+    expect(slotCentre('Cape', 1100, 120)).toBe(990)
+    expect((5 * slotCentre('Armor', 1100, 120) + slotCentre('Cape', 1100, 120)) / 6).toBe(1100)
   })
 })
 
-describe('climbing', () => {
-  it('keeps pieces near the target, capes allowing for spec', () => {
-    expect(pieceFloor('Head', 1200, 120, 'even')).toBe(1100)
-    expect(pieceFloor('Cape', 1200, 120, 'even')).toBe(956)
-    expect(pieceFloor('MainHand', 1200, 120, 'weapon')).toBe(1200)
-    expect(pieceFloor('Armor', 1200, 120, 'weapon')).toBe(1050)
-    expect(pieceFloor('Armor', 1200, 120, 'cheapest')).toBe(0)
+describe('buildSet', () => {
+  // Every piece at T4 is dirt cheap, every piece at T5 a bit more, and an 8.3 helmet is on sale too.
+  const rows: Price[] = []
+  for (const city of settings.cities) {
+    for (const base of ['2H_CLAYMORE', 'HEAD_X', 'ARMOR_X', 'SHOES_X', 'CAPE_X']) {
+      rows.push(price(id(base, 4), city, 100), price(id(base, 5), city, 1000))
+    }
+    rows.push(price(id('HEAD_X', 8, 3), city, 50))
+  }
+  const lookup = indexQualityPrices(rows)
+
+  it('keeps every piece within the band of the target, however cheap other tiers are', () => {
+    const set = buildSet(weapon, gearSlots, lookup, settings, 0, 800)!
+    expect(set.picks.map((p) => p.option.tier)).toEqual([5, 5, 5, 5, 5])
+    expect(set.picks.every((p) => Math.abs(p.option.itemPower - 800) <= BAND)).toBe(true)
+    expect(set).toMatchObject({ itemPower: 800, price: 5000 })
   })
 
-  it('skips versions below the floor even when they would be cheaper', () => {
-    const pieces = [
-      piece('MainHand', opt(700, 100), opt(900, 1000)),
-      piece('Head', opt(700, 100), opt(800, 200)),
-      piece('Armor', opt(700, 100), opt(800, 200)),
-      piece('Shoes', opt(700, 100), opt(800, 200)),
-      piece('Cape', opt(700, 100), opt(800, 200)),
-    ]
-    // Cheapest mix keeps the armour low and pushes the weapon; a floor of 800 lifts every piece.
-    expect(cheapestForTarget(claymore, 'Martlock', pieces, 800)!.picks.map((p) => p.option.itemPower)).toEqual([900, 700, 700, 800, 800])
-    expect(cheapestForTarget(claymore, 'Martlock', pieces, 800, () => 800)!.picks.map((p) => p.option.itemPower)).toEqual([900, 800, 800, 800, 800])
+  it('lifts the cheapest pieces within the band until the average reaches the target', () => {
+    const better = [...rows]
+    for (const city of settings.cities) {
+      better.push(price(id('2H_CLAYMORE', 5), city, 5000, 3))
+      for (const base of ['HEAD_X', 'ARMOR_X', 'SHOES_X']) better.push(price(id(base, 5), city, 1100, 3))
+    }
+    // 800 is 20 short of 820 on average: three +40 pieces at 100 each beat the +80 weapon at 4,000.
+    const set = buildSet(weapon, gearSlots, indexQualityPrices(better), settings, 0, 820)!
+    expect(set.picks.map((p) => p.option.quality)).toEqual([1, 3, 3, 3, 1])
+    expect(set.itemPower).toBe(820)
+  })
+
+  it('buys in the city that sells the most pieces and fills the rest elsewhere', () => {
+    const partial = indexQualityPrices(rows.filter((r) => !(r.city === 'Martlock' && r.itemId === 'T5_SHOES_X')).filter((r) => !(r.city === 'Lymhurst' && r.itemId === 'T5_HEAD_X')).filter((r) => !(r.city === 'Lymhurst' && r.itemId === 'T5_ARMOR_X')))
+    const set = buildSet(weapon, gearSlots, partial, settings, 0, 800)!
+    expect(set.city).toBe('Martlock')
+    expect(set.picks.find((p) => p.slot === 'Shoes')?.option.city).toBe('Lymhurst')
+    expect(set.picks.filter((p) => p.option.city === 'Martlock')).toHaveLength(4)
+  })
+
+  it('falls back to the next most common item in a slot', () => {
+    const set = buildSet(weapon, [[gear('Head', 'HEAD_Y'), gear('Head', 'HEAD_X')], ...gearSlots.slice(1)], lookup, settings, 0, 800)!
+    expect(set.picks.find((p) => p.slot === 'Head')).toMatchObject({ rank: 1, item: { base: 'HEAD_X' } })
+  })
+
+  it('counts spec with the tier bonus and leaves capes without it', () => {
+    // 100 spec: T5 pieces get +105, so 905 sits near a 900 target; the T5 cape gets none and sits at 800.
+    const set = buildSet(weapon, gearSlots, lookup, settings, 100, 900)!
+    expect(set.picks.find((p) => p.slot === 'Armor')?.option.itemPower).toBe(905)
+    expect(set.picks.find((p) => p.slot === 'Cape')?.option.itemPower).toBe(800)
+  })
+
+  it('says which slot has nothing near the target', () => {
+    expect(buildSet(weapon, gearSlots, lookup, settings, 0, 1100)).toBeNull()
+    expect(noSetReason(weapon, gearSlots, lookup, settings, 0, 1100)).toBe('no weapon near 1100 IP for sale with recent prices')
+    expect(noSetReason(weapon, gearSlots.slice(0, 2), lookup, settings, 0, 800)).toBe('no gear data yet')
+  })
+})
+
+describe('bandOptions and equivalenceLadder', () => {
+  const rows = [
+    price(id('2H_CLAYMORE', 5), 'Martlock', 3000),
+    price(id('2H_CLAYMORE', 4), 'Lymhurst', 2000, 5), // Masterpiece T4: 800 IP
+    price(id('2H_CLAYMORE', 4), 'Lymhurst', 100), // 700 IP, too low
+    price(id('2H_CLAYMORE', 6), 'Lymhurst', 50), // 900 IP, too high
+  ]
+  const lookup = indexQualityPrices(rows)
+
+  it('only offers versions inside the band, cheapest first', () => {
+    expect(bandOptions(weapon, 'MainHand', 800, lookup, settings, 0).map((o) => [o.tier, o.quality, o.price])).toEqual([
+      [4, 5, 2000],
+      [5, 1, 3000],
+    ])
+  })
+
+  it('lists equivalent versions per city', () => {
+    const ladder = equivalenceLadder(weapon, 'MainHand', 800, lookup, settings, 0)
+    expect(ladder.map((r) => [r.tier, r.quality, Object.fromEntries(r.prices)])).toEqual([
+      [4, 5, { Lymhurst: 2000 }],
+      [5, 1, { Martlock: 3000 }],
+    ])
   })
 })
