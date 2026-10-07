@@ -18,6 +18,9 @@ npm run build   # static build in dist/
 - `src/api/servers.ts` – the three servers and their API hosts
 - `src/api/prices.ts` – price fetcher (batching, normalisation of missing prices/dates)
 - `src/api/items.ts` – resource item ids (ore, hide, fiber, wood, stone and refined goods)
+- `src/refining/recipes.ts` – refining recipes for every resource, tier (T2–T8) and enchantment
+- `src/refining/settings.ts` – return rate, focus, station fee and market tax settings
+- `src/refining/profit.ts` – profit per refined item with a full cost breakdown
 - `src/App.tsx` – server switch and a price check table
 
 ## UI conventions
