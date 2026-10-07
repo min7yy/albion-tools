@@ -32,7 +32,7 @@ and force-pushes a single commit to the `meta-data` branch:
 
 To try it locally: `node --experimental-strip-types scripts/collect-meta.ts out`. The Build guide
 loads `<server>.json` from raw.githubusercontent.com for its popularity, kill share and
-Recommended ranking (`src/buildguide/meta.ts`).
+Recommended ranking (`src/buildguide/meta.ts`), and for the gear in full sets (`src/buildguide/sets.ts`).
 
 ## Layout
 
@@ -49,7 +49,7 @@ Recommended ranking (`src/buildguide/meta.ts`).
 - `src/meta/aggregate.ts` – kill-event counting for the builds tracker, shared with the site
 - `src/buildguide/` – build guide engine: cheapest version of each weapon by item power per silver, under a budget
 - `src/data/crafting.json` – generated recipe data; rebuild with `node scripts/build-crafting-data.mjs`
-- `src/data/weapons.json` – generated weapon item power data; rebuild with `node scripts/build-weapon-data.mjs`
+- `src/data/weapons.json`, `src/data/gear.json` – generated item power for weapons and gear; rebuild with `node scripts/build-weapon-data.mjs`
 - `src/components/` – settings panel, filters, ranked tables and cost breakdown
 - `src/pages/` – the Refining, Crafting, Flips and Build guide pages
 - `src/App.tsx` – header, page tabs and server switch

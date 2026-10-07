@@ -1,5 +1,5 @@
 import type { FightSize, MetaSummary } from '../meta/aggregate'
-import type { BudgetRow } from './value'
+import type { Weapon } from './weapons'
 
 export type FightFilter = 'all' | FightSize
 
@@ -55,27 +55,34 @@ export const SORT_MODES: { id: SortMode; label: string }[] = [
   { id: 'popularity', label: 'Popularity' },
 ]
 
-export interface MetaRow extends BudgetRow {
+/** Anything ranked in the Build guide: a weapon on its own or a full set built around it. */
+export interface Rankable {
+  weapon: Weapon
+  itemPower: number
+  price: number
+}
+
+export type MetaRow<T extends Rankable> = T & {
   meta: WeaponMeta | null
   /** 0–1: half how much item power the budget buys (against the best row), half how popular it is (against the most popular). */
   score: number
 }
 
-/** Adds meta data to budget rows and sorts them. */
-export function rankWithMeta(rows: BudgetRow[], meta: Map<string, WeaponMeta> | null, sort: SortMode): MetaRow[] {
-  const powers = rows.map((r) => r.best.itemPower)
+/** Adds meta data to rows and sorts them. */
+export function rankWithMeta<T extends Rankable>(rows: T[], meta: Map<string, WeaponMeta> | null, sort: SortMode): MetaRow<T>[] {
+  const powers = rows.map((r) => r.itemPower)
   const minPower = Math.min(...powers)
   const maxPower = Math.max(...powers)
   let maxPopularity = 0
   for (const r of rows) maxPopularity = Math.max(maxPopularity, meta?.get(r.weapon.base)?.popularity ?? 0)
 
-  const out: MetaRow[] = rows.map((r) => {
+  const out: MetaRow<T>[] = rows.map((r) => {
     const m = meta?.get(r.weapon.base) ?? null
-    const power = maxPower > minPower ? (r.best.itemPower - minPower) / (maxPower - minPower) : 1
+    const power = maxPower > minPower ? (r.itemPower - minPower) / (maxPower - minPower) : 1
     const popularity = maxPopularity && m ? m.popularity / maxPopularity : 0
     return { ...r, meta: m, score: meta ? (power + popularity) / 2 : power }
   })
-  const byPower = (a: MetaRow, b: MetaRow) => b.best.itemPower - a.best.itemPower || a.best.price - b.best.price
+  const byPower = (a: MetaRow<T>, b: MetaRow<T>) => b.itemPower - a.itemPower || a.price - b.price
   if (sort === 'itemPower') return out.sort(byPower)
   if (sort === 'popularity') return out.sort((a, b) => (b.meta?.popularity ?? 0) - (a.meta?.popularity ?? 0) || byPower(a, b))
   return out.sort((a, b) => b.score - a.score || byPower(a, b))
