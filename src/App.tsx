@@ -1,59 +1,58 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { SERVERS } from './api/servers'
 import { ROYAL_CITIES } from './api/cities'
-import { RESOURCES, itemId, type ResourceKind } from './api/items'
-import { fetchPrices, indexPrices, type Price } from './api/prices'
+import { indexPrices } from './api/prices'
+import { allRecipes, allRefiningItemIds } from './refining/recipes'
+import { DEFAULT_SETTINGS, type RefiningSettings } from './refining/settings'
+import { DEFAULT_FILTERS, evaluateAll, rankResults, resultKey, type RefiningFilters } from './refining/rank'
+import { SettingsPanel } from './components/SettingsPanel'
+import { FiltersBar } from './components/FiltersBar'
+import { RefiningTable } from './components/RefiningTable'
+import { RefiningDetail } from './components/RefiningDetail'
 import { useServer } from './useServer'
+import { usePrices } from './usePrices'
+import { useStoredState } from './useStoredState'
+import { formatAge } from './format'
 
-const CHECK_TIERS = [4, 5, 6, 7, 8]
+const RECIPES = allRecipes()
+const ITEM_IDS = allRefiningItemIds(RECIPES)
+const CITIES = [...ROYAL_CITIES]
+const ROW_LIMIT = 200
 
-function formatSilver(n: number | null): string {
-  return n === null ? '–' : n.toLocaleString()
-}
-
-function formatAge(date: Date | null): string {
-  if (!date) return ''
-  const mins = Math.round((Date.now() - date.getTime()) / 60000)
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.round(mins / 60)
-  return hours < 48 ? `${hours}h ago` : `${Math.round(hours / 24)}d ago`
+function withDefaults<T extends object>(defaults: T) {
+  return (saved: unknown): T =>
+    saved && typeof saved === 'object' ? { ...defaults, ...(saved as Partial<T>) } : defaults
 }
 
 export default function App() {
   const [server, setServer] = useServer()
-  const [resource, setResource] = useState<ResourceKind>('ore')
-  const [prices, setPrices] = useState<Price[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [reloadKey, setReloadKey] = useState(0)
-
-  const { raw, refined } = RESOURCES[resource]
-  const items = useMemo(
-    () => CHECK_TIERS.flatMap((t) => [itemId(t, raw), itemId(t, refined)]),
-    [raw, refined],
+  const [settings, setSettings] = useStoredState<RefiningSettings>(
+    'albion-tools.refining.settings',
+    DEFAULT_SETTINGS,
+    withDefaults(DEFAULT_SETTINGS),
   )
+  const [filters, setFilters] = useStoredState<RefiningFilters>(
+    'albion-tools.refining.filters',
+    DEFAULT_FILTERS,
+    withDefaults(DEFAULT_FILTERS),
+  )
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const { prices, loading, error, fetchedAt, reload } = usePrices(server, ITEM_IDS, CITIES)
 
-  useEffect(() => {
-    const controller = new AbortController()
-    setLoading(true)
-    setError(null)
-    fetchPrices({ server, items, locations: [...ROYAL_CITIES], signal: controller.signal })
-      .then(setPrices)
-      .catch((e: unknown) => {
-        if (!controller.signal.aborted) setError(e instanceof Error ? e.message : String(e))
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
-    return () => controller.abort()
-  }, [server, items, reloadKey])
-
-  const byKey = useMemo(() => indexPrices(prices), [prices])
+  const results = useMemo(() => {
+    const index = indexPrices(prices)
+    return evaluateAll(RECIPES, CITIES, (id, city) => index.get(`${id}|${city}`), settings)
+  }, [prices, settings])
+  const rows = useMemo(() => rankResults(results, filters), [results, filters])
+  // Only show the breakdown while its row is still in the filtered list.
+  const selected = selectedKey ? rows.find((r) => resultKey(r) === selectedKey) : undefined
 
   return (
     <div className="app">
       <header>
-        <h1>Albion Tools</h1>
+        <h1>
+          Albion Tools <span className="subtitle">Refining profits</span>
+        </h1>
         <div className="server-switch" role="radiogroup" aria-label="Server">
           {SERVERS.map((s) => (
             <button
@@ -69,56 +68,39 @@ export default function App() {
         </div>
       </header>
 
-      <main>
-        <section>
+      <div className="layout">
+        <SettingsPanel settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} />
+
+        <main className="panel">
           <div className="toolbar">
-            <h2>Price check</h2>
-            <select value={resource} onChange={(e) => setResource(e.target.value as ResourceKind)}>
-              {Object.entries(RESOURCES).map(([k, r]) => (
-                <option key={k} value={k}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-            <button onClick={() => setReloadKey((k) => k + 1)} disabled={loading}>
-              {loading ? 'Loading…' : 'Refresh'}
-            </button>
+            <FiltersBar filters={filters} onChange={setFilters} />
+            <div className="refresh">
+              <span className="hint">
+                {loading ? 'Loading prices…' : fetchedAt ? `Prices loaded ${formatAge(fetchedAt)}` : ''}
+              </span>
+              <button onClick={reload} disabled={loading}>
+                Refresh
+              </button>
+            </div>
           </div>
-          <p className="hint">
-            Cheapest sell order per city, flat (.0) items, normal quality. Data from the Albion
-            Online Data Project.
-          </p>
           {error && <p className="error">{error}</p>}
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  {ROYAL_CITIES.map((c) => (
-                    <th key={c}>{c}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((id) => (
-                  <tr key={id}>
-                    <td className="item">{id}</td>
-                    {ROYAL_CITIES.map((c) => {
-                      const p = byKey.get(`${id}|${c}`)
-                      return (
-                        <td key={c} className="num">
-                          {formatSilver(p?.sellMin ?? null)}
-                          <span className="age">{formatAge(p?.sellMinDate ?? null)}</span>
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          <div className={selected ? 'results with-detail' : 'results'}>
+            {loading && !prices.length ? (
+              <p className="hint">Loading prices for {ITEM_IDS.length} items…</p>
+            ) : (
+              <RefiningTable rows={rows} selectedKey={selectedKey} onSelect={setSelectedKey} limit={ROW_LIMIT} />
+            )}
+            {selected && (
+              <RefiningDetail result={selected} settings={settings} onClose={() => setSelectedKey(null)} />
+            )}
           </div>
-        </section>
-      </main>
+          <p className="hint footer">
+            Each row buys materials, refines and sells in the same city. Prices come from the Albion Online Data
+            Project and are only as fresh as the last player who scanned that market.
+          </p>
+        </main>
+      </div>
     </div>
   )
 }

@@ -21,7 +21,9 @@ npm run build   # static build in dist/
 - `src/refining/recipes.ts` – refining recipes for every resource, tier (T2–T8) and enchantment
 - `src/refining/settings.ts` – return rate, focus, station fee and market tax settings
 - `src/refining/profit.ts` – profit per refined item with a full cost breakdown
-- `src/App.tsx` – server switch and a price check table
+- `src/refining/rank.ts` – evaluates every recipe in every royal city, then filters and sorts
+- `src/components/` – settings panel, filters, ranked table and cost breakdown
+- `src/App.tsx` – the refining page and server switch
 
 ## UI conventions
 
