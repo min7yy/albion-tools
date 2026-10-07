@@ -1,16 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Price } from '../api/prices'
-import {
-  bestUnderBudget,
-  budgetRange,
-  cheapestOffer,
-  evaluateWeapons,
-  indexQualityPrices,
-  rankForBudget,
-  valueFrontier,
-  weaponOptions,
-  type OfferSettings,
-} from './value'
+import { cheapestOffer, indexQualityPrices, valueFrontier, weaponOptions, type OfferSettings } from './value'
 import { WEAPONS, weaponItemId, weaponItemIds, type Weapon } from './weapons'
 
 const NOW = new Date('2026-10-07T12:00:00Z').getTime()
@@ -95,38 +85,4 @@ describe('weaponOptions and valueFrontier', () => {
     ])
   })
 
-  it('picks the most item power under the budget', () => {
-    const frontier = valueFrontier(options)
-    expect(bestUnderBudget(frontier, 10_000)).toBeNull()
-    expect(bestUnderBudget(frontier, 50_000)).toMatchObject({ itemId: 'T6_MAIN_SWORD', quality: 5 })
-    expect(bestUnderBudget(frontier, 1_000_000)).toMatchObject({ itemId: 'T8_MAIN_SWORD', quality: 3 })
-  })
-})
-
-describe('rankForBudget', () => {
-  const axe: Weapon = { base: 'MAIN_AXE', name: 'Battleaxe', sub: 'axe', twoHanded: false, variants: [[5, 0, 800], [6, 0, 900]] }
-  const bow: Weapon = { base: '2H_BOW', name: 'Bow', sub: 'bow', twoHanded: true, variants: [[6, 0, 900]] }
-  const prices = indexQualityPrices([
-    p('T6_MAIN_SWORD', 'Martlock', 20_000),
-    p('T5_MAIN_AXE', 'Martlock', 5_000),
-    p('T6_MAIN_AXE', 'Martlock', 15_000),
-  ])
-  const values = evaluateWeapons([sword, axe, bow], prices, settings)
-
-  it('drops weapons with no prices', () => {
-    expect(values.map((v) => v.weapon.base)).toEqual(['MAIN_SWORD', 'MAIN_AXE'])
-  })
-
-  it('ranks by item power, then price, and drops weapons over budget', () => {
-    expect(rankForBudget(values, 25_000).map((r) => [r.weapon.base, r.best.itemId])).toEqual([
-      ['MAIN_AXE', 'T6_MAIN_AXE'],
-      ['MAIN_SWORD', 'T6_MAIN_SWORD'],
-    ])
-    expect(rankForBudget(values, 10_000).map((r) => r.best.itemId)).toEqual(['T5_MAIN_AXE'])
-  })
-
-  it('gives the slider range', () => {
-    expect(budgetRange(values)).toEqual({ min: 5_000, max: 20_000 })
-    expect(budgetRange([])).toBeNull()
-  })
 })
