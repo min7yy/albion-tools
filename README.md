@@ -13,6 +13,12 @@ npm test        # unit tests
 npm run build   # static build in dist/
 ```
 
+## Hosting
+
+Every push to `main` is tested, built and deployed to GitHub Pages by
+`.github/workflows/deploy.yml`: https://min7yy.github.io/albion-tools/
+Pull requests run lint, tests and a build (`.github/workflows/ci.yml`).
+
 ## Layout
 
 - `src/api/servers.ts` – the three servers and their API hosts
