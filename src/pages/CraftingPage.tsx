@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ServerId } from '../api/servers'
 import { indexPrices } from '../api/prices'
-import { itemName } from '../api/items'
-import { CRAFT_RECIPES, INGREDIENT_NAMES } from '../crafting/data'
+import { CRAFT_RECIPES, craftItemName } from '../crafting/data'
 import { BLACK_MARKET, type CraftingSettings } from '../crafting/evaluate'
 import {
   DEFAULT_CRAFTING_FILTERS,
@@ -20,17 +19,11 @@ import { CraftingTable } from '../components/CraftingTable'
 import { ProfitBreakdown } from '../components/ProfitBreakdown'
 import { usePrices } from '../usePrices'
 import { useStoredState, withDefaults } from '../useStoredState'
-import { formatAge, tierLabel } from '../format'
+import { formatAge } from '../format'
 import { CRAFTING_CITIES, CRAFTING_MARKETS } from './craftingCities'
 
 const ROW_LIMIT = 200
-const RECIPE_BY_ID = new Map(CRAFT_RECIPES.map((r) => [r.id, r]))
-
-function nameOf(id: string): string {
-  const recipe = RECIPE_BY_ID.get(id)
-  if (recipe) return `${tierLabel(recipe.tier, recipe.ench)} ${recipe.name}`
-  return INGREDIENT_NAMES[id] ?? itemName(id)
-}
+const nameOf = craftItemName
 
 export default function CraftingPage({ server }: { server: ServerId }) {
   const [settings, setSettings] = useStoredState<CraftingSettings>(
