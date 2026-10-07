@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MetaSummary } from '../meta/aggregate'
 import { rankWithMeta, weaponMeta } from './meta'
-import type { BudgetRow, WeaponOption } from './value'
 import type { Weapon } from './weapons'
 
 const summary: MetaSummary = {
@@ -17,10 +16,9 @@ const summary: MetaSummary = {
   },
 }
 
-function row(base: string, itemPower: number, price: number): BudgetRow {
+function row(base: string, itemPower: number, price: number) {
   const weapon: Weapon = { base, name: base, sub: 'sword', twoHanded: false, variants: [] }
-  const best: WeaponOption = { itemId: `T4_${base}`, tier: 4, ench: 0, quality: 1, itemPower, price, city: 'Martlock', date: new Date() }
-  return { weapon, best, frontier: [best] }
+  return { weapon, itemPower, price }
 }
 
 describe('weaponMeta', () => {

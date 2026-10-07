@@ -149,3 +149,9 @@ table.breakdown tr.muted td { opacity: 0.45; }
   .app { padding: 0 16px 24px; }
   header { margin: 0 -16px 16px; padding: 10px 16px; position: static; }
 }
+.segmented { display: flex; padding: 3px; gap: 2px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; }
+.segmented button { flex: 1; border: none; background: none; color: var(--muted); padding: 5px 8px; border-radius: 7px; font-size: 0.8rem; }
+.segmented button:hover:not(:disabled) { color: var(--text); background: var(--hover); }
+.segmented button.active { background: var(--surface-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }
+table.breakdown.set td { vertical-align: middle; }
+.slot { display: block; font-size: 0.65rem; color: var(--faint); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }

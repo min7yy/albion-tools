@@ -49,8 +49,12 @@ export interface WeaponOption extends Offer {
   itemPower: number
 }
 
-/** Every version (tier, enchantment, quality) of a weapon that has a fresh price. */
-export function weaponOptions(weapon: Weapon, prices: QualityPriceLookup, settings: OfferSettings): WeaponOption[] {
+/** Every version (tier, enchantment, quality) of a weapon or piece of gear that has a fresh price. */
+export function weaponOptions(
+  weapon: Pick<Weapon, 'base' | 'variants'>,
+  prices: QualityPriceLookup,
+  settings: OfferSettings,
+): WeaponOption[] {
   const options: WeaponOption[] = []
   for (const [tier, ench, basePower] of weapon.variants) {
     const itemId = weaponItemId(weapon.base, tier, ench)
