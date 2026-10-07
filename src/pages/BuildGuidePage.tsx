@@ -8,9 +8,9 @@ import { ROLES, weaponRole, type Role } from '../buildguide/roles'
 import { FIGHT_FILTERS, type FightFilter } from '../buildguide/meta'
 import { BUILDS_PER_WEAPON, SORT_MODES, loadoutsFor, rankBuilds, type BuildRow, type SortMode } from '../buildguide/loadouts'
 import { useMeta } from '../useMeta'
-import { GEAR, SLOT_LABELS, gearItemIds, type Gear } from '../buildguide/gear'
+import { SLOT_LABELS, gearItemIds, type Gear } from '../buildguide/gear'
 import { usualGear } from '../buildguide/sets'
-import { cheapestCity, equivalenceLadder, noSetReason, type SetPiece } from '../buildguide/target'
+import { BAND, buildSet, equivalenceLadder, noSetReason, type SetPick } from '../buildguide/target'
 import { specFromLevels } from '../buildguide/mastery'
 import { ItemIcon } from '../components/ItemIcon'
 import { HowItWorks, MoreOptions } from '../components/MoreOptions'
@@ -58,7 +58,7 @@ const CARDS_SHOWN = 30
 
 /** Identifies a card: the weapon plus its loadout. */
 function buildKey(r: BuildRow): string {
-  return `${r.weapon.base}|${r.loadout ? r.set.picks.map((p) => p.piece.base).join('|') : 'usual'}`
+  return `${r.weapon.base}|${r.loadout ? r.set.picks.map((p) => p.item.base).join('|') : 'usual'}`
 }
 
 function Version({ o }: { o: Pick<WeaponOption, 'tier' | 'ench' | 'quality'> }) {
@@ -81,25 +81,23 @@ function Avg() {
 
 /** The same item power for less: every version of one piece that matches it, with its cheapest city. */
 function Ladder({
-  piece,
-  option,
-  item,
+  pick,
+  target,
   setCity,
   lookup,
   offers,
   spec,
 }: {
-  piece: SetPiece
-  option: WeaponOption
-  item: Weapon | Gear
+  pick: SetPick
+  target: number
   setCity: string
   lookup: QualityPriceLookup
   offers: OfferSettings
   spec: number
 }) {
   const rows = useMemo(
-    () => equivalenceLadder(item, piece.slot, option.itemPower, lookup, offers, spec),
-    [item, piece.slot, option.itemPower, lookup, offers, spec],
+    () => equivalenceLadder(pick.item, pick.slot, target, lookup, offers, spec),
+    [pick.item, pick.slot, target, lookup, offers, spec],
   )
   if (!rows.length) return null
   let cheapest = Infinity
@@ -203,13 +201,13 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
     for (const weapon of weapons) {
       let priced = 0
       for (const loadout of loadouts.get(weapon.base) ?? []) {
-        const set = cheapestCity(weapon, loadout.gear, lookup, offers, spec, settings.target, 'even')
+        const set = buildSet(weapon, loadout.gear, lookup, offers, spec, settings.target)
         if (!set) continue
         list.push({ weapon, loadout, set })
         priced++
       }
       if (priced) continue
-      const set = cheapestCity(weapon, gearFor.get(weapon.base) ?? [], lookup, offers, spec, settings.target, 'even')
+      const set = buildSet(weapon, gearFor.get(weapon.base) ?? [], lookup, offers, spec, settings.target)
       if (set) list.push({ weapon, loadout: null, set })
       else none.push(weapon)
     }
@@ -219,9 +217,9 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
   const missingReasons = useMemo(
     () =>
       prices.length
-        ? missing.map((w) => ({ weapon: w, reason: noSetReason(w, gearFor.get(w.base) ?? [], lookup, offers, spec) }))
+        ? missing.map((w) => ({ weapon: w, reason: noSetReason(w, gearFor.get(w.base) ?? [], lookup, offers, spec, settings.target) }))
         : [],
-    [missing, prices.length, gearFor, lookup, offers, spec],
+    [missing, prices.length, gearFor, lookup, offers, spec, settings.target],
   )
 
   const toggleCity = (city: string) =>
@@ -410,6 +408,8 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                     <strong>{formatSilver(r.set.price)}</strong>
                     <small>
                       in {r.set.city}
+                      {r.set.picks.some((p) => p.option.city !== r.set.city) &&
+                        ` + ${r.set.picks.filter((p) => p.option.city !== r.set.city).length} elsewhere`}
                       {r.set.picks.some((p) => p.option.average) && (
                         <span className="tag-avg" title="Some pieces have no current listing; their price is last week's average sale">
                           {' '}incl. avg
@@ -418,8 +418,12 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                     </small>
                   </span>
                   <span className="build-strip">
-                    {r.set.picks.map(({ piece, option }) => (
-                      <span key={piece.slot} className="strip-item" title={`${SLOT_LABELS[piece.slot]}: ${piece.name}`}>
+                    {r.set.picks.map(({ slot, item, option }) => (
+                      <span
+                        key={slot}
+                        className="strip-item"
+                        title={`${SLOT_LABELS[slot]}: ${item.name}${option.city !== r.set.city ? ` (buy in ${option.city})` : ''}`}
+                      >
                         <ItemIcon id={option.itemId} size={40} />
                         <span className={`ench e${option.ench}`}>{tierLabel(option.tier, option.ench)}</span>
                       </span>
@@ -453,20 +457,20 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                     <p className="hint">Tap a piece to see versions with the same item power and where each is cheapest.</p>
                     <table className="breakdown set">
                       <tbody>
-                        {r.set.picks.map(({ piece, option }) => {
-                          const item = piece.slot === 'MainHand' ? r.weapon : GEAR.get(piece.base)
-                          const slotOpen = openSlot === piece.slot
+                        {r.set.picks.map((pick) => {
+                          const { slot, item, option } = pick
+                          const slotOpen = openSlot === slot
                           return (
-                            <Fragment key={piece.slot}>
-                              <tr className="clickable" onClick={() => setOpenSlot(slotOpen ? null : piece.slot)}>
+                            <Fragment key={slot}>
+                              <tr className="clickable" onClick={() => setOpenSlot(slotOpen ? null : slot)}>
                                 <td>
                                   <span className="slot">
-                                    {SLOT_LABELS[piece.slot]} {slotOpen ? '▾' : '▸'}
+                                    {SLOT_LABELS[slot]} {slotOpen ? '▾' : '▸'}
                                   </span>
                                   <span className="item-cell">
                                     <ItemIcon id={option.itemId} size={24} />
-                                    {item?.name ?? piece.name}
-                                    {piece.rank > 0 && (
+                                    {item.name}
+                                    {pick.rank > 0 && (
                                       <span className="tag-2h" title="The usual item isn't sold here, so this is the next most common one or a common substitute">
                                         alt
                                       </span>
@@ -478,17 +482,17 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                                   <Version o={option} />
                                 </td>
                                 <td className="num">
+                                  {option.city !== r.set.city && <span className="slot">buy in {option.city}</span>}
                                   {formatSilver(option.price)}
                                   {option.average && <Avg />}
                                 </td>
                               </tr>
-                              {slotOpen && item && (
+                              {slotOpen && (
                                 <tr className="ladder-row">
                                   <td colSpan={3}>
                                     <Ladder
-                                      piece={piece}
-                                      option={option}
-                                      item={item}
+                                      pick={pick}
+                                      target={settings.target}
                                       setCity={r.set.city}
                                       lookup={lookup}
                                       offers={offers}
@@ -534,9 +538,11 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
         official killboard. Every attacker in a kill counts a win for their loadout and the victim a loss, split by fight
         size; up to {BUILDS_PER_WEAPON} loadouts per weapon with at least 8 fights are shown. The killboard only records
         fights where someone died, so ganks count as wins: treat win rates as a guide. Weapons without enough fights yet use
-        the gear most often seen with them, slot by slot, marked usual gear. Each set is bought in one city: the cheapest
-        city whose versions reach your target average item power with every piece within 100 IP of it (capes, which get no spec, a little lower), counting six slots as the game does (a two-handed weapon
-        fills the off-hand too) and your spec (+5% of spec per tier above T4, none on capes, from the game's own files).
+        the gear most often seen with them, slot by slot, marked usual gear. Every piece is the cheapest version
+        within {BAND} IP of your target (capes, which get no spec, a little lower and the rest a little higher so the
+        average lands on it), so no set mixes a low weapon with a high helmet. Sets are bought in the city that sells the
+        most pieces; anything it lacks comes from the cheapest other city and says where. Item power counts six slots as
+        the game does (a two-handed weapon fills the off-hand too) and your spec (+5% of spec per tier above T4, none on capes, from the game's own files).
         Where a city has no current listing, last week's average sale price there is used and marked avg. Recommended
         weighs win rate 40%, how often it's played 30% and price 30%. Weapons are grouped by the role they usually play
         (the usual community split).
