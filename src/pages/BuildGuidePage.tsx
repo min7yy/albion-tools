@@ -33,7 +33,7 @@ function Version({ o }: { o: WeaponOption }) {
       <span className={`ench e${o.ench}`}>
         {tierLabel(o.tier, o.ench)}
       </span>
-      {o.quality > 1 && <span className="badge">{QUALITY_NAMES[o.quality]}</span>}
+      {o.quality > 1 && <span className={`quality q${o.quality}`}>{QUALITY_NAMES[o.quality]}</span>}
     </>
   )
 }
@@ -82,7 +82,10 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
       <aside className="settings">
         <fieldset className="panel">
           <legend>Budget</legend>
-          <strong className="budget">{formatSilver(settings.budget)} silver</strong>
+          <strong className="budget">
+            {formatSilver(settings.budget)}
+            <small>silver</small>
+          </strong>
           {range && (
             <input
               type="range"
@@ -194,7 +197,7 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                         <span className="item-cell">
                           <ItemIcon id={r.best.itemId} size={28} />
                           {r.weapon.name}
-                          {r.weapon.twoHanded && <span className="muted">2H</span>}
+                          {r.weapon.twoHanded && <span className="tag-2h">2H</span>}
                         </span>
                       </td>
                       <td>
