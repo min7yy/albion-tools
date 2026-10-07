@@ -86,3 +86,17 @@ describe('weaponOptions and valueFrontier', () => {
   })
 
 })
+
+describe('cheapestOffer with sale averages', () => {
+  const now = Date.parse('2026-10-07T12:00:00Z')
+  const listing: Price = { itemId: 'T4_X', city: 'Martlock', quality: 1, sellMin: 500, sellMinDate: new Date(now), buyMax: null, buyMaxDate: null }
+  const lookup = indexQualityPrices([listing])
+  const averages = (_id: string, city: string) => (city === 'Lymhurst' ? 300 : city === 'Martlock' ? 100 : undefined)
+
+  it('uses a listing where there is one and the average only where there is not', () => {
+    const settings = { cities: ['Martlock', 'Lymhurst', 'Thetford'], maxAgeHours: 24, now, averages }
+    expect(cheapestOffer('T4_X', 1, lookup, settings)).toMatchObject({ city: 'Lymhurst', price: 300, average: true })
+    expect(cheapestOffer('T4_X', 1, lookup, { ...settings, cities: ['Martlock'] })).toMatchObject({ price: 500 })
+    expect(cheapestOffer('T4_X', 1, lookup, { ...settings, cities: ['Thetford'] })).toBeNull()
+  })
+})

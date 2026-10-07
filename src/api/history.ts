@@ -22,11 +22,19 @@ export type SalesLookup = (itemId: string, city: string) => SalesVolume | undefi
 
 export const VOLUME_DAYS = 7
 
-export function buildHistoryUrls(apiBase: string, items: string[], locations: string[], quality = 1): string[] {
+export function buildHistoryUrls(
+  apiBase: string,
+  items: string[],
+  locations: string[],
+  quality: number | readonly number[] = 1,
+  /** First day to return, as the API's M-D-YYYY; omitted for its default range. */
+  since?: string,
+): string[] {
   const query = new URLSearchParams({
     locations: locations.join(','),
-    qualities: String(quality),
+    qualities: Array.isArray(quality) ? quality.join(',') : String(quality),
     'time-scale': '24',
+    ...(since ? { date: since } : {}),
   }).toString()
   return batchItemUrls(`${apiBase}/api/v2/stats/history/`, items, `.json?${query}`)
 }
@@ -80,4 +88,42 @@ export async function fetchSalesVolume({
     }
   }
   return volumes
+}
+
+/** Average sale price keyed by `${itemId}|${city}|${quality}`; missing where nothing sold. */
+export type SaleAverageLookup = (itemId: string, city: string, quality: number) => number | undefined
+
+/** The API's date format for history: M-D-YYYY in UTC. */
+export function historyDate(time: number): string {
+  const d = new Date(time)
+  return `${d.getUTCMonth() + 1}-${d.getUTCDate()}-${d.getUTCFullYear()}`
+}
+
+/**
+ * Volume-weighted average sale price over the last week for every quality, used to fill in
+ * where a market has no current sell order.
+ */
+export async function fetchSaleAverages({
+  server,
+  items,
+  locations,
+  qualities,
+  signal,
+  fetchImpl = fetch,
+  now = Date.now(),
+}: FetchHistoryOptions & { qualities: readonly number[] }): Promise<Map<string, number>> {
+  const averages = new Map<string, number>()
+  if (!items.length) return averages
+  const since = historyDate(now - VOLUME_DAYS * 86_400_000)
+  // Sequential on purpose: the API rate limits per IP.
+  for (const url of buildHistoryUrls(getServer(server).apiBase, items, locations, qualities, since)) {
+    const res = await fetchImpl(url, { signal })
+    if (res.status === 429) throw new Error('Sales history rate limit hit, wait a minute and retry.')
+    if (!res.ok) throw new Error(`Sales history error ${res.status}`)
+    for (const series of (await res.json()) as RawHistory[]) {
+      const { avgPrice } = summarizeHistory(series, now)
+      if (avgPrice) averages.set(`${series.item_id}|${series.location}|${series.quality}`, Math.round(avgPrice))
+    }
+  }
+  return averages
 }

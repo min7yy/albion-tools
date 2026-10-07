@@ -163,6 +163,8 @@ export interface LadderRow {
   ench: number
   quality: number
   itemPower: number
+  /** Cities whose price is last week's average sale rather than a sell order. */
+  averaged: Set<string>
   /** Price per city; missing where nobody sells it. */
   prices: Map<string, number>
 }
@@ -186,8 +188,16 @@ export function equivalenceLadder(
       // Same item power or a little above (spec's tier bonus moves versions apart by a few points).
       if (o.itemPower < itemPower || o.itemPower >= itemPower + LADDER_SPREAD) continue
       const key = `${o.tier}.${o.ench}.${o.quality}`
-      const row = rows.get(key) ?? { tier: o.tier, ench: o.ench, quality: o.quality, itemPower: o.itemPower, prices: new Map() }
+      const row = rows.get(key) ?? {
+        tier: o.tier,
+        ench: o.ench,
+        quality: o.quality,
+        itemPower: o.itemPower,
+        prices: new Map(),
+        averaged: new Set<string>(),
+      }
       row.prices.set(city, o.price)
+      if (o.average) row.averaged.add(city)
       rows.set(key, row)
     }
   }
