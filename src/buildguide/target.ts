@@ -66,9 +66,12 @@ interface Combo {
 export function cheapestForTarget(
   weapon: Weapon,
   city: string,
-  pieces: SetPiece[],
+  allPieces: SetPiece[],
   target: number,
+  /** Least item power each piece may have, so no slot is left far behind the rest. */
+  floor: (slot: SetSlot) => number = () => 0,
 ): TargetSet | null {
+  const pieces = allPieces.map((p) => ({ ...p, frontier: p.frontier.filter((o) => o.itemPower >= floor(p.slot)) }))
   const slotsFilled = pieces.length + (weapon.twoHanded ? 1 : 0)
   if (slotsFilled < SLOTS || pieces.some((p) => !p.frontier.length)) return null
   const needed = target * SLOTS
@@ -110,6 +113,25 @@ export function cheapestForTarget(
   }
 }
 
+/**
+ * How pieces rise with the target: 'even' keeps every piece near it, 'weapon' puts the weapon at
+ * the target and lets armour trail a little, 'cheapest' takes any mix that reaches the average.
+ */
+export type Climb = 'even' | 'weapon' | 'cheapest'
+
+/** How far below the target a piece may sit, by climb. */
+export const CLIMB_GAP: Record<Climb, number> = { even: 100, weapon: 150, cheapest: Infinity }
+
+/**
+ * Least item power a piece may have. Capes get no spec, so they trail the others by up to the
+ * spec bonus with its T8 tier bonus (+20%), and their floor drops by that much.
+ */
+export function pieceFloor(slot: SetSlot, target: number, spec: number, climb: Climb): number {
+  if (climb === 'cheapest') return 0
+  if (climb === 'weapon' && slot === 'MainHand') return target
+  return target - CLIMB_GAP[climb] - (slot === 'Cape' ? Math.round(spec * 1.2) : 0)
+}
+
 /** Cheapest city for the target: every piece from one market, nobody wants five trips for one set. */
 export function cheapestCity(
   weapon: Weapon,
@@ -118,10 +140,12 @@ export function cheapestCity(
   settings: OfferSettings,
   spec: number,
   target: number,
+  climb: Climb = 'cheapest',
 ): TargetSet | null {
   let best: TargetSet | null = null
+  const floor = (slot: SetSlot) => pieceFloor(slot, target, spec, climb)
   for (const city of settings.cities) {
-    const set = cheapestForTarget(weapon, city, cityPieces(weapon, gear, prices, { ...settings, cities: [city] }, spec), target)
+    const set = cheapestForTarget(weapon, city, cityPieces(weapon, gear, prices, { ...settings, cities: [city] }, spec), target, floor)
     if (set && (!best || set.price < best.price)) best = set
   }
   return best

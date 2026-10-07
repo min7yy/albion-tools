@@ -203,13 +203,13 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
     for (const weapon of weapons) {
       let priced = 0
       for (const loadout of loadouts.get(weapon.base) ?? []) {
-        const set = cheapestCity(weapon, loadout.gear, lookup, offers, spec, settings.target)
+        const set = cheapestCity(weapon, loadout.gear, lookup, offers, spec, settings.target, 'even')
         if (!set) continue
         list.push({ weapon, loadout, set })
         priced++
       }
       if (priced) continue
-      const set = cheapestCity(weapon, gearFor.get(weapon.base) ?? [], lookup, offers, spec, settings.target)
+      const set = cheapestCity(weapon, gearFor.get(weapon.base) ?? [], lookup, offers, spec, settings.target, 'even')
       if (set) list.push({ weapon, loadout: null, set })
       else none.push(weapon)
     }
@@ -384,7 +384,7 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
       ) : !rows.length ? (
         <p className="hint">
           No set reaches {settings.target} item power with recent prices in one city. Try a lower target, more cities or
-          older prices.
+          older prices. Each weapon's reason is below.
         </p>
       ) : (
         <ol className="build-cards">
@@ -514,10 +514,20 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
           Show more ({rows.length - cardLimit} left)
         </button>
       )}
-      {rows.length > 0 && missingReasons.length > 0 && (
-        <p className="hint missing-builds">
-          Not shown: {missingReasons.map((m) => `${m.weapon.name} (${m.reason})`).join(', ')}.
-        </p>
+      {missingReasons.length > 0 && (
+        <ol className="build-cards missing-builds" aria-label="Weapons with no set">
+          {missingReasons.map((m) => (
+            <li key={m.weapon.base} className="build-card unpriced">
+              <span className="build-head">
+                <span className="build-title">
+                  <strong>{m.weapon.name}</strong>
+                  {m.weapon.twoHanded && <span className="tag-2h">2H</span>}
+                </span>
+                <span className="build-stats">No set at {settings.target} IP: {m.reason}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
       )}
       <HowItWorks>
         Builds are whole loadouts (weapon, off-hand, helmet, armour, shoes and cape) seen together in recent kills from the
@@ -525,7 +535,7 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
         size; up to {BUILDS_PER_WEAPON} loadouts per weapon with at least 8 fights are shown. The killboard only records
         fights where someone died, so ganks count as wins: treat win rates as a guide. Weapons without enough fights yet use
         the gear most often seen with them, slot by slot, marked usual gear. Each set is bought in one city: the cheapest
-        city whose versions reach your target average item power, counting six slots as the game does (a two-handed weapon
+        city whose versions reach your target average item power with every piece within 100 IP of it (capes, which get no spec, a little lower), counting six slots as the game does (a two-handed weapon
         fills the off-hand too) and your spec (+5% of spec per tier above T4, none on capes, from the game's own files).
         Where a city has no current listing, last week's average sale price there is used and marked avg. Recommended
         weighs win rate 40%, how often it's played 30% and price 30%. Weapons are grouped by the role they usually play
