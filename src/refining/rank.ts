@@ -27,7 +27,7 @@ export const DEFAULT_FILTERS: RefiningFilters = {
   city: 'all',
   hideIncomplete: true,
   maxAgeHours: 24,
-  minDailySales: null,
+  minDailySales: 10,
   sortBy: 'profit',
 }
 

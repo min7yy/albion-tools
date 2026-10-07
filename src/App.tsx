@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { SERVERS } from './api/servers'
 import { useServer } from './useServer'
 import { useHashRoute } from './useHashRoute'
@@ -23,6 +23,20 @@ export default function App() {
     PAGES.map((p) => p.id),
     'refining',
   )
+
+  // A share link's filters are read once when the tab opens; tidy them out of the address
+  // bar so later changes aren't mistaken for the link. Pasting a new link reloads to apply it.
+  useEffect(() => {
+    if (window.location.hash.includes('?')) {
+      const { pathname, search, hash } = window.location
+      history.replaceState(null, '', pathname + search + hash.split('?')[0])
+    }
+    const onChange = () => {
+      if (window.location.hash.includes('?')) window.location.reload()
+    }
+    window.addEventListener('hashchange', onChange)
+    return () => window.removeEventListener('hashchange', onChange)
+  }, [])
 
   return (
     <div className="app">

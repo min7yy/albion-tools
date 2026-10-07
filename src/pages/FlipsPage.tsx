@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import type { ServerId } from '../api/servers'
 import { indexPrices } from '../api/prices'
 import { craftItemName } from '../crafting/data'
-import { DEFAULT_FLIP_FILTERS, flipKey, flipsForItem, rankFlips, type FlipFilters } from '../flips/flips'
+import { DEFAULT_FLIP_FILTERS, flipKey, flipsForItem, rankFlips } from '../flips/flips'
 import { flipItemsFor } from '../flips/items'
 import { flipMarketsFor } from '../flips/markets'
 import type { TradeSettings } from '../profit'
@@ -12,6 +12,9 @@ import { ItemIcon } from '../components/ItemIcon'
 import { usePrices } from '../usePrices'
 import { useStoredState, withDefaults } from '../useStoredState'
 import { formatAge, formatPercent, formatSilver } from '../format'
+import { useLinkedFilters } from '../useLinkedFilters'
+import { buildShareUrl, encodeFilters } from '../shareLink'
+import { ShareButton } from '../components/ShareButton'
 
 const ROW_LIMIT = 200
 const DEFAULT_TRADE: TradeSettings = { premium: true, buyMode: 'instant', sellMode: 'instant' }
@@ -22,11 +25,7 @@ export default function FlipsPage({ server }: { server: ServerId }) {
     DEFAULT_TRADE,
     withDefaults(DEFAULT_TRADE),
   )
-  const [filters, setFilters] = useStoredState<FlipFilters>(
-    'albion-tools.flips.filters',
-    DEFAULT_FLIP_FILTERS,
-    withDefaults(DEFAULT_FLIP_FILTERS),
-  )
+  const [filters, setFilters] = useLinkedFilters('flips', 'albion-tools.flips.filters', DEFAULT_FLIP_FILTERS)
 
   // Only fetch what the filters can show.
   const itemIds = useMemo(
@@ -58,6 +57,13 @@ export default function FlipsPage({ server }: { server: ServerId }) {
             <span className="hint">
               {loading ? 'Loading prices…' : fetchedAt ? `Prices loaded ${formatAge(fetchedAt)}` : ''}
             </span>
+            <ShareButton
+              getUrl={() => {
+                const params = encodeFilters(filters, DEFAULT_FLIP_FILTERS)
+                params.set('server', server)
+                return buildShareUrl(window.location.href, 'flips', params)
+              }}
+            />
             <button onClick={reload} disabled={loading}>
               Refresh
             </button>

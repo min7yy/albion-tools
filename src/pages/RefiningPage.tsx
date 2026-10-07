@@ -4,7 +4,7 @@ import { ROYAL_CITIES } from '../api/cities'
 import { indexPrices } from '../api/prices'
 import { allRecipes, allRefiningItemIds } from '../refining/recipes'
 import { DEFAULT_SETTINGS, type RefiningSettings } from '../refining/settings'
-import { DEFAULT_FILTERS, evaluateAll, rankResults, resultKey, type RefiningFilters } from '../refining/rank'
+import { DEFAULT_FILTERS, evaluateAll, rankResults, resultKey } from '../refining/rank'
 import { SettingsPanel } from '../components/SettingsPanel'
 import { FiltersBar } from '../components/FiltersBar'
 import { RefiningTable } from '../components/RefiningTable'
@@ -13,6 +13,9 @@ import { usePrices } from '../usePrices'
 import { useSalesVolume } from '../useSalesVolume'
 import { useStoredState, withDefaults } from '../useStoredState'
 import { formatAge } from '../format'
+import { useLinkedFilters } from '../useLinkedFilters'
+import { buildShareUrl, encodeFilters } from '../shareLink'
+import { ShareButton } from '../components/ShareButton'
 
 const RECIPES = allRecipes()
 const ITEM_IDS = allRefiningItemIds(RECIPES)
@@ -26,12 +29,8 @@ export default function RefiningPage({ server }: { server: ServerId }) {
     DEFAULT_SETTINGS,
     withDefaults(DEFAULT_SETTINGS),
   )
-  const [filters, setFilters] = useStoredState<RefiningFilters>(
-    'albion-tools.refining.filters',
-    DEFAULT_FILTERS,
-    withDefaults(DEFAULT_FILTERS),
-  )
-  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [filters, setFilters, linkedRow] = useLinkedFilters('refining', 'albion-tools.refining.filters', DEFAULT_FILTERS)
+  const [selectedKey, setSelectedKey] = useState<string | null>(linkedRow)
   const { prices, loading, error, fetchedAt, reload } = usePrices(server, ITEM_IDS, CITIES)
   const volume = useSalesVolume(server, OUTPUT_IDS, CITIES)
 
@@ -58,6 +57,14 @@ export default function RefiningPage({ server }: { server: ServerId }) {
               <span className="hint">
                 {loading ? 'Loading prices…' : fetchedAt ? `Prices loaded ${formatAge(fetchedAt)}` : ''}
               </span>
+              <ShareButton
+                getUrl={() => {
+                  const params = encodeFilters(filters, DEFAULT_FILTERS)
+                  params.set('server', server)
+                  if (selectedKey) params.set('sel', selectedKey)
+                  return buildShareUrl(window.location.href, 'refining', params)
+                }}
+              />
               <button
                 onClick={() => {
                   reload()
