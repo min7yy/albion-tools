@@ -1,0 +1,45 @@
+name: Collect kill meta
+
+# Samples recent kills from the official API every 30 minutes and publishes a rolling week of
+# weapon use and gear pairings to the meta-data branch, which the site reads.
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: meta
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Load the previous run's data
+        run: |
+          mkdir -p meta-out
+          if git fetch --depth=1 origin meta-data; then
+            git archive FETCH_HEAD | tar -x -C meta-out
+          fi
+      - name: Collect kills
+        run: node --experimental-strip-types scripts/collect-meta.ts meta-out
+      - name: Publish to the meta-data branch
+        # One commit, force-pushed each run, so the branch never builds up history.
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          cd meta-out
+          git init -q -b meta-data
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -qm "Kill meta $(date -u +%FT%TZ)"
+          git push -qf "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" meta-data

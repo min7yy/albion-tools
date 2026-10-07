@@ -19,6 +19,19 @@ Every push to `main` is tested, built and deployed to GitHub Pages by
 `.github/workflows/deploy.yml`: https://min7yy.github.io/albion-tools/
 Pull requests run lint, tests and a build (`.github/workflows/ci.yml`).
 
+## Builds tracker
+
+`.github/workflows/meta.yml` runs every 30 minutes (or by hand from the Actions tab). It samples
+the latest ~1,000 kills per server from the official gameinfo API with `scripts/collect-meta.ts`
+and force-pushes a single commit to the `meta-data` branch:
+
+- `<server>.json` – summary for the site: kills and deaths per weapon for solo, small group (2–5)
+  and large fights over the last 7 days, plus the 5 most common off-hands, helmets, armours,
+  shoes and capes seen with each weapon
+- `<server>-state.json` – per-day counts carried between runs
+
+To try it locally: `node --experimental-strip-types scripts/collect-meta.ts out`.
+
 ## Layout
 
 - `src/api/servers.ts` – the three servers and their API hosts
@@ -31,6 +44,7 @@ Pull requests run lint, tests and a build (`.github/workflows/ci.yml`).
 - `src/profit.ts` – shared profit engine (returns, station fee, tax) used by refining and crafting
 - `src/crafting/` – crafting recipes, evaluation and ranking
 - `src/flips/` – flip finder: buy in one market, sell in another or to the Black Market
+- `src/meta/aggregate.ts` – kill-event counting for the builds tracker, shared with the site
 - `src/buildguide/` – build guide engine: cheapest version of each weapon by item power per silver, under a budget
 - `src/data/crafting.json` – generated recipe data; rebuild with `node scripts/build-crafting-data.mjs`
 - `src/data/weapons.json` – generated weapon item power data; rebuild with `node scripts/build-weapon-data.mjs`
