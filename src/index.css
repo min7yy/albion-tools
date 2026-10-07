@@ -203,3 +203,5 @@ table.breakdown.ladder td { padding: 5px 0; font-size: 0.8rem; }
   .build-strip { grid-column: 1 / -1; }
   .build-stats { grid-column: 1 / -1; justify-content: flex-start; }
 }
+.type-chips { margin: -4px 0 10px; }
+.type-chips button { font-size: 0.8rem; padding: 3px 10px; }
