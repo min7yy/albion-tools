@@ -4,6 +4,7 @@ import { MARKET_CITIES } from '../api/cities'
 import { indexQualityPrices, QUALITIES, QUALITY_NAMES, type OfferSettings, type QualityPriceLookup, type WeaponOption } from '../buildguide/value'
 import { WEAPONS, weaponItemIds, type Weapon } from '../buildguide/weapons'
 import { WEAPON_TYPES, weaponTypeLabel } from '../buildguide/types'
+import { ROLES, weaponRole, type Role } from '../buildguide/roles'
 import { FIGHT_FILTERS, SORT_MODES, rankWithMeta, weaponMeta, type FightFilter, type SortMode } from '../buildguide/meta'
 import { useMeta } from '../useMeta'
 import { GEAR, SLOT_LABELS, gearItemIds, type Gear } from '../buildguide/gear'
@@ -19,6 +20,8 @@ import { formatAge, formatPercent, formatSilver, tierLabel } from '../format'
 interface BuildGuideSettings {
   /** Average item power to reach, as the game shows it (spec included). */
   target: number
+  role: Role
+  /** A weapon type within the role, or 'all'. */
   sub: string
   hands: 'any' | '1h' | '2h'
   cities: string[]
@@ -33,7 +36,8 @@ interface BuildGuideSettings {
 
 const DEFAULTS: BuildGuideSettings = {
   target: 1100,
-  sub: 'sword',
+  role: 'dps',
+  sub: 'all',
   hands: 'any',
   cities: [...MARKET_CITIES],
   maxAgeHours: 48,
@@ -117,8 +121,8 @@ function Ladder({
 
 export default function BuildGuidePage({ server }: { server: ServerId }) {
   const [settings, setSettings] = useStoredState<BuildGuideSettings>(
-    // v4: rebuilt around a target item power, with spec as destiny board levels.
-    'albion-tools.buildguide.settings.v4',
+    // v5: weapons are picked by role, then optionally by type.
+    'albion-tools.buildguide.settings.v5',
     DEFAULTS,
     withDefaults(DEFAULTS),
   )
@@ -126,13 +130,18 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
   const [selected, setSelected] = useState<string | null>(null)
   const [openSlot, setOpenSlot] = useState<string | null>(null)
 
-  // Prices are fetched one weapon type at a time: every version and quality of every item is a lot of rows.
+  // Prices are fetched for one role at a time: every version and quality of every item is a lot of rows.
+  const roleTypes = useMemo(
+    () => WEAPON_TYPES.filter((s) => WEAPONS.some((w) => w.sub === s && weaponRole(w) === settings.role)),
+    [settings.role],
+  )
+  const sub = roleTypes.includes(settings.sub) ? settings.sub : 'all'
   const weapons = useMemo(
     () =>
-      WEAPONS.filter((w) => w.sub === settings.sub).filter(
-        (w) => settings.hands === 'any' || w.twoHanded === (settings.hands === '2h'),
-      ),
-    [settings.sub, settings.hands],
+      WEAPONS.filter((w) => weaponRole(w) === settings.role)
+        .filter((w) => sub === 'all' || w.sub === sub)
+        .filter((w) => settings.hands === 'any' || w.twoHanded === (settings.hands === '2h')),
+    [settings.role, sub, settings.hands],
   )
   const { summary, error: metaError } = useMeta(server)
   const meta = useMemo(() => (summary ? weaponMeta(summary, settings.fight) : null), [summary, settings.fight])
@@ -207,14 +216,20 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
       <div className="toolbar">
         <div className="filters">
           <label>
-            Weapon type
-            <select value={settings.sub} onChange={(e) => set({ sub: e.target.value })}>
-              {WEAPON_TYPES.map((s) => (
-                <option key={s} value={s}>
-                  {weaponTypeLabel(s)}
-                </option>
+            Role
+            <span className="segmented" role="radiogroup" aria-label="Role">
+              {ROLES.map((r) => (
+                <button
+                  key={r.id}
+                  role="radio"
+                  aria-checked={settings.role === r.id}
+                  className={settings.role === r.id ? 'active' : ''}
+                  onClick={() => set({ role: r.id, sub: 'all' })}
+                >
+                  {r.label}
+                </button>
               ))}
-            </select>
+            </span>
           </label>
           <label>
             Fight size
@@ -250,6 +265,15 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
           </button>
         </div>
       </div>
+      {roleTypes.length > 1 && (
+        <div className="chips type-chips" role="group" aria-label="Weapon type">
+          {['all', ...roleTypes].map((s) => (
+            <button key={s} className={sub === s ? 'active' : ''} onClick={() => set({ sub: s })}>
+              {s === 'all' ? 'All' : weaponTypeLabel(s)}
+            </button>
+          ))}
+        </div>
+      )}
       <MoreOptions
         summary={[
           `Mastery ${settings.mastery}, spec ${settings.spec} (+${Math.round(spec)} IP)`,
@@ -419,7 +443,8 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
         </ol>
       )}
       <HowItWorks>
-        Each weapon is paired with the helmet, armour, shoes, cape and off-hand most often seen with it in recent kills (or
+        Weapons are grouped by the role they usually play in group fights (the game files don't tag roles, so this is the
+        usual community split). Each weapon is paired with the helmet, armour, shoes, cape and off-hand most often seen with it in recent kills (or
         the next most common when a city doesn't sell it), and the whole set is bought in one city: the cheapest city
         whose versions reach your target average item power. The average counts six slots as the game does, with a
         two-handed weapon filling the off-hand too, and includes your spec. Item power, the tier bonus (+5% of spec per
