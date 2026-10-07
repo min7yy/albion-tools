@@ -1,7 +1,7 @@
 import { Fragment, useMemo, useState } from 'react'
 import type { ServerId } from '../api/servers'
 import { MARKET_CITIES } from '../api/cities'
-import { indexQualityPrices, QUALITIES, QUALITY_NAMES, type OfferSettings, type QualityPriceLookup, type WeaponOption } from '../buildguide/value'
+import { indexQualityPrices, QUALITIES, QUALITY_NAMES, type Offer, type OfferSettings, type QualityPriceLookup, type WeaponOption } from '../buildguide/value'
 import { WEAPONS, weaponItemIds, type Weapon } from '../buildguide/weapons'
 import { WEAPON_TYPES, weaponTypeLabel } from '../buildguide/types'
 import { ROLES, weaponRole, type Role } from '../buildguide/roles'
@@ -14,8 +14,10 @@ import { BAND, buildSet, equivalenceLadder, noSetReason, type SetPick } from '..
 import { specFromLevels } from '../buildguide/mastery'
 import { ItemIcon } from '../components/ItemIcon'
 import { HowItWorks, MoreOptions } from '../components/MoreOptions'
+import { UploaderHelp } from '../components/UploaderHelp'
 import { usePrices } from '../usePrices'
 import { useSaleAverages } from '../useSaleAverages'
+import { usePriceArchive } from '../usePriceArchive'
 import { useStoredState, withDefaults } from '../useStoredState'
 import { formatAge, formatPercent, formatSilver, tierLabel } from '../format'
 
@@ -70,13 +72,21 @@ function Version({ o }: { o: Pick<WeaponOption, 'tier' | 'ench' | 'quality'> }) 
   )
 }
 
-/** Marks a price that is last week's average sale rather than a current listing. */
-function Avg() {
-  return (
-    <span className="tag-avg" title="No current listing here; this is last week's average sale price">
-      {' '}avg
-    </span>
-  )
+/** Marks a price that isn't a current listing: last week's average sale, or an older listing the archive saw. */
+function PriceNote({ offer }: { offer: Pick<Offer, 'average' | 'archived' | 'date'> }) {
+  if (offer.average)
+    return (
+      <span className="tag-avg" title="No current listing here; this is last week's average sale price">
+        {' '}avg
+      </span>
+    )
+  if (offer.archived)
+    return (
+      <span className="tag-avg" title="No current listing here; this is the last one seen, which may have sold since">
+        {' '}seen {formatAge(offer.date)}
+      </span>
+    )
+  return null
 }
 
 /** The same item power for less: every version of one piece that matches it, with its cheapest city. */
@@ -101,13 +111,13 @@ function Ladder({
   )
   if (!rows.length) return null
   let cheapest = Infinity
-  for (const r of rows) for (const p of r.prices.values()) cheapest = Math.min(cheapest, p)
+  for (const r of rows) for (const o of r.offers.values()) cheapest = Math.min(cheapest, o.price)
   return (
     <table className="breakdown ladder">
       <tbody>
         {rows.map((r) => {
-          const [bestCity, bestPrice] = [...r.prices].sort((a, b) => a[1] - b[1])[0]
-          const here = r.prices.get(setCity)
+          const best = [...r.offers.values()].sort((a, b) => a.price - b.price)[0]
+          const here = r.offers.get(setCity)
           return (
             <tr key={`${r.tier}.${r.ench}.${r.quality}`}>
               <td>
@@ -116,13 +126,13 @@ function Ladder({
               </td>
               <td className="num">
                 <span className="slot">{setCity}</span>
-                {here ? formatSilver(here) : '–'}
-                {here && r.averaged.has(setCity) && <Avg />}
+                {here ? formatSilver(here.price) : '–'}
+                {here && <PriceNote offer={here} />}
               </td>
-              <td className={`num${bestPrice === cheapest ? ' pos' : ''}`}>
-                <span className="slot">{bestCity}</span>
-                {formatSilver(bestPrice)}
-                {r.averaged.has(bestCity) && <Avg />}
+              <td className={`num${best.price === cheapest ? ' pos' : ''}`}>
+                <span className="slot">{best.city}</span>
+                {formatSilver(best.price)}
+                <PriceNote offer={best} />
               </td>
             </tr>
           )
@@ -181,6 +191,7 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
   const { prices, loading, error, fetchedAt, reload } = usePrices(server, itemIds, [...MARKET_CITIES], QUALITIES)
   // Fills gaps where a city has no current listing; the page shows listings first and updates when this lands.
   const history = useSaleAverages(server, itemIds, [...MARKET_CITIES], QUALITIES)
+  const archive = usePriceArchive(server)
 
   const offers = useMemo<OfferSettings>(
     () => ({
@@ -188,9 +199,10 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
       maxAgeHours: settings.maxAgeHours,
       // Ages are measured from when the prices were loaded; with no prices there is nothing to age.
       now: fetchedAt?.getTime() ?? 0,
+      archive,
       averages: history.averages,
     }),
-    [settings.cities, settings.maxAgeHours, fetchedAt, history.averages],
+    [settings.cities, settings.maxAgeHours, fetchedAt, archive, history.averages],
   )
   const lookup = useMemo(() => indexQualityPrices(prices), [prices])
   const spec = specFromLevels(settings.mastery, settings.spec)
@@ -221,6 +233,19 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
         : [],
     [missing, prices.length, gearFor, lookup, offers, spec, settings.target],
   )
+
+  // Pieces on screen priced from an older listing or an average, per city, to look up in game.
+  const needed = useMemo(() => {
+    const byCity = new Map<string, Set<string>>()
+    for (const r of rows.slice(0, cardLimit)) {
+      for (const { item, option } of r.set.picks) {
+        if (!option.average && !option.archived) continue
+        if (!byCity.has(option.city)) byCity.set(option.city, new Set())
+        byCity.get(option.city)!.add(`${item.name} ${tierLabel(option.tier, option.ench)}`)
+      }
+    }
+    return new Map([...byCity].sort((a, b) => a[0].localeCompare(b[0])).map(([city, items]) => [city, [...items].sort()]))
+  }, [rows, cardLimit])
 
   const toggleCity = (city: string) =>
     set({
@@ -377,12 +402,13 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
       {error && <p className="error">{error}</p>}
       {metaError && <p className="error">{metaError}. Sets are built from the gear seen in recent kills, so they can't load.</p>}
 
+      {prices.length > 0 && <UploaderHelp needed={needed} unpriced={missing.map((w) => w.name)} />}
       {(loading && !prices.length) || (!summary && !metaError) ? (
         <p className="hint">Loading prices for {weapons.length} weapons and their usual gear…</p>
       ) : !rows.length ? (
         <p className="hint">
-          No set reaches {settings.target} item power with recent prices in one city. Try a lower target, more cities or
-          older prices. Each weapon's reason is below.
+          No set reaches {settings.target} item power with recent prices. Try a lower target or more cities. Each
+          weapon's reason is below.
         </p>
       ) : (
         <ol className="build-cards">
@@ -410,9 +436,9 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                       in {r.set.city}
                       {r.set.picks.some((p) => p.option.city !== r.set.city) &&
                         ` + ${r.set.picks.filter((p) => p.option.city !== r.set.city).length} elsewhere`}
-                      {r.set.picks.some((p) => p.option.average) && (
-                        <span className="tag-avg" title="Some pieces have no current listing; their price is last week's average sale">
-                          {' '}incl. avg
+                      {r.set.picks.some((p) => p.option.average || p.option.archived) && (
+                        <span className="tag-avg" title="Some pieces have no current listing; their price is an older listing or last week's average sale">
+                          {' '}incl. older prices
                         </span>
                       )}
                     </small>
@@ -484,7 +510,7 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                                 <td className="num">
                                   {option.city !== r.set.city && <span className="slot">buy in {option.city}</span>}
                                   {formatSilver(option.price)}
-                                  {option.average && <Avg />}
+                                  <PriceNote offer={option} />
                                 </td>
                               </tr>
                               {slotOpen && (
@@ -543,7 +569,9 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
         average lands on it), so no set mixes a low weapon with a high helmet. Sets are bought in the city that sells the
         most pieces; anything it lacks comes from the cheapest other city and says where. Item power counts six slots as
         the game does (a two-handed weapon fills the off-hand too) and your spec (+5% of spec per tier above T4, none on capes, from the game's own files).
-        Where a city has no current listing, last week's average sale price there is used and marked avg. Recommended
+        Where a city has no current listing, the last one seen there in the past week is used and marked with its age
+        (a job saves every listing the Albion Data Project reports, since it only keeps them for about a day); failing
+        that, last week's average sale price, marked avg. Recommended
         weighs win rate 40%, how often it's played 30% and price 30%. Weapons are grouped by the role they usually play
         (the usual community split).
         {summary ? ` Based on ${summary.events.toLocaleString()} kills since ${summary.from}, updated ${formatAge(new Date(summary.updatedAt))}.` : ''}

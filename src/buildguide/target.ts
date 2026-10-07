@@ -1,6 +1,6 @@
 import type { Gear } from './gear'
 import { specItemPower, type SetSlot } from './mastery'
-import { weaponOptions, type OfferSettings, type QualityPriceLookup, type WeaponOption } from './value'
+import { weaponOptions, type Offer, type OfferSettings, type QualityPriceLookup, type WeaponOption } from './value'
 import type { Weapon } from './weapons'
 import type { GearSlot } from '../meta/aggregate'
 
@@ -182,10 +182,8 @@ export interface LadderRow {
   ench: number
   quality: number
   itemPower: number
-  /** Cities whose price is last week's average sale rather than a sell order. */
-  averaged: Set<string>
-  /** Price per city; missing where nobody sells it. */
-  prices: Map<string, number>
+  /** The offer per city (price, and whether it is an average or an archived order); missing where nobody sells it. */
+  offers: Map<string, Offer>
 }
 
 /** Every version of a piece within the band, with its price in each city, cheapest first. */
@@ -206,15 +204,13 @@ export function equivalenceLadder(
         ench: o.ench,
         quality: o.quality,
         itemPower: o.itemPower,
-        prices: new Map(),
-        averaged: new Set<string>(),
+        offers: new Map(),
       }
-      row.prices.set(city, o.price)
-      if (o.average) row.averaged.add(city)
+      row.offers.set(city, o)
       rows.set(key, row)
     }
   }
-  const cheapest = (r: LadderRow) => Math.min(...r.prices.values())
+  const cheapest = (r: LadderRow) => Math.min(...[...r.offers.values()].map((o) => o.price))
   return [...rows.values()].sort((a, b) => cheapest(a) - cheapest(b) || a.itemPower - b.itemPower).slice(0, LADDER_ROWS)
 }
 

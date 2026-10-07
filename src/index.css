@@ -210,3 +210,10 @@ table.breakdown.ladder td { padding: 5px 0; font-size: 0.8rem; }
 .build-card.unpriced { opacity: 0.6; }
 .build-card.unpriced .build-head { cursor: default; }
 .build-card.unpriced .build-head:hover { background: none; }
+.help-steps { margin: 8px 0 12px; padding-left: 20px; color: var(--muted); line-height: 1.55; font-size: 0.85rem; }
+.help-steps code { font-size: 0.8rem; }
+.needed-prices { margin: 6px 0 0; padding-left: 18px; color: var(--muted); line-height: 1.55; font-size: 0.85rem; overflow-wrap: anywhere; }
+table.breakdown td.num .tag-avg { display: block; font-size: 0.75rem; }
+@media (max-width: 520px) {
+  table.breakdown.set .quality { display: block; width: fit-content; margin-top: 3px; }
+}

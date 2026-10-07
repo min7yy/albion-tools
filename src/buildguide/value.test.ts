@@ -100,3 +100,24 @@ describe('cheapestOffer with sale averages', () => {
     expect(cheapestOffer('T4_X', 1, lookup, { ...settings, cities: ['Thetford'] })).toBeNull()
   })
 })
+
+describe('cheapestOffer with the price archive', () => {
+  const lookup = indexQualityPrices([p('T4_X', 'Martlock', 500)])
+  const seen: Record<string, { price: number; date: Date }> = {
+    Lymhurst: { price: 200, date: hoursAgo(72) },
+    Thetford: { price: 100, date: hoursAgo(24 * 8) },
+    Caerleon: { price: 300, date: hoursAgo(2) },
+  }
+  const archive = (_id: string, city: string) => seen[city]
+  const averages = () => 50
+
+  it('falls back to the last listing seen in the past week, then to the average', () => {
+    const s = { ...settings, archive, averages }
+    expect(cheapestOffer('T4_X', 1, lookup, { ...s, cities: ['Lymhurst'] })).toMatchObject({ price: 200, archived: true })
+    // Older than a week: the average instead.
+    expect(cheapestOffer('T4_X', 1, lookup, { ...s, cities: ['Thetford'] })).toMatchObject({ price: 50, average: true })
+    // A listing the archive saw within the age limit counts as current.
+    expect(cheapestOffer('T4_X', 1, lookup, { ...s, cities: ['Caerleon'] })).toEqual({ price: 300, city: 'Caerleon', date: hoursAgo(2) })
+    expect(cheapestOffer('T4_X', 1, lookup, { ...s, cities: ['Martlock'] })).toMatchObject({ price: 500 })
+  })
+})

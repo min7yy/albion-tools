@@ -1,5 +1,6 @@
 import type { Price } from '../api/prices'
 import type { SaleAverageLookup } from '../api/history'
+import { ARCHIVE_DAYS, type ArchiveLookup } from '../api/archive'
 import { weaponItemId, type Weapon } from './weapons'
 
 /** Market qualities: 1 Normal, 2 Good, 3 Outstanding, 4 Excellent, 5 Masterpiece. */
@@ -22,7 +23,9 @@ export interface OfferSettings {
   /** Sell orders older than this are ignored, since the item has probably sold. */
   maxAgeHours: number
   now: number
-  /** Last week's average sale price, used where a city has no fresh sell order. */
+  /** Sell orders the Data Project has since dropped, used where a city has no fresh one. */
+  archive?: ArchiveLookup
+  /** Last week's average sale price, used where a city has neither. */
   averages?: SaleAverageLookup
 }
 
@@ -32,11 +35,14 @@ export interface Offer {
   date: Date
   /** The price is last week's average sale, not a current sell order. */
   average?: boolean
+  /** The sell order is older than the age limit, last seen by the price archive on `date`. */
+  archived?: boolean
 }
 
 /**
- * Cheapest offer for an item at one quality across the given cities: a fresh sell order, or
- * where a city has none, last week's average sale price there.
+ * Cheapest offer for an item at one quality across the given cities: a fresh sell order; where a
+ * city has none, the last one the archive saw there in the past week; failing that, last week's
+ * average sale price there.
  */
 export function cheapestOffer(itemId: string, quality: number, prices: QualityPriceLookup, settings: OfferSettings): Offer | null {
   const cutoff = settings.now - settings.maxAgeHours * 3600_000
@@ -44,8 +50,13 @@ export function cheapestOffer(itemId: string, quality: number, prices: QualityPr
   for (const city of settings.cities) {
     const p = prices(itemId, city, quality)
     let offer: Offer | null = null
+    const saved = settings.archive?.(itemId, city, quality)
     if (p?.sellMin && p.sellMinDate && p.sellMinDate.getTime() >= cutoff) {
       offer = { price: p.sellMin, city, date: p.sellMinDate }
+    } else if (saved && saved.date.getTime() >= cutoff) {
+      offer = { price: saved.price, city, date: saved.date }
+    } else if (saved && saved.date.getTime() >= settings.now - ARCHIVE_DAYS * 86_400_000) {
+      offer = { price: saved.price, city, date: saved.date, archived: true }
     } else {
       const avg = settings.averages?.(itemId, city, quality)
       if (avg) offer = { price: avg, city, date: new Date(settings.now), average: true }
