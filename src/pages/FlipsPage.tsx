@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import type { ServerId } from '../api/servers'
 import { indexPrices } from '../api/prices'
 import { craftItemName } from '../crafting/data'
-import { DEFAULT_FLIP_FILTERS, flipKey, flipsForItem, rankFlips } from '../flips/flips'
+import { DEFAULT_FLIP_FILTERS, flipKey, flipVolume, flipsForItem, rankFlips } from '../flips/flips'
 import { flipItemsFor } from '../flips/items'
 import { flipMarketsFor } from '../flips/markets'
 import type { TradeSettings } from '../profit'
@@ -10,8 +10,9 @@ import { FlipFiltersBar } from '../components/FlipFiltersBar'
 import { TradeSettingsPanel } from '../components/TradeSettingsPanel'
 import { ItemIcon } from '../components/ItemIcon'
 import { usePrices } from '../usePrices'
+import { useSalesVolume } from '../useSalesVolume'
 import { useStoredState, withDefaults } from '../useStoredState'
-import { formatAge, formatPercent, formatSilver } from '../format'
+import { formatAge, formatPercent, formatPerDay, formatSilver } from '../format'
 import { useLinkedFilters } from '../useLinkedFilters'
 import { buildShareUrl, encodeFilters } from '../shareLink'
 import { ShareButton } from '../components/ShareButton'
@@ -38,13 +39,14 @@ export default function FlipsPage({ server }: { server: ServerId }) {
   )
   const markets = useMemo(() => flipMarketsFor(filters.category), [filters.category])
   const { prices, loading, error, fetchedAt, reload } = usePrices(server, itemIds, markets)
+  const volume = useSalesVolume(server, itemIds, markets)
 
   const rows = useMemo(() => {
     const index = indexPrices(prices)
     const lookup = (id: string, city: string) => index.get(`${id}|${city}`)
     const all = itemIds.flatMap((id) => flipsForItem(id, markets, lookup, settings))
-    return rankFlips(all, filters)
-  }, [itemIds, markets, prices, settings, filters])
+    return rankFlips(all, filters, fetchedAt?.getTime(), volume.sales)
+  }, [itemIds, markets, prices, settings, filters, fetchedAt, volume.sales])
 
   return (
     <div className="layout">
@@ -64,12 +66,19 @@ export default function FlipsPage({ server }: { server: ServerId }) {
                 return buildShareUrl(window.location.href, 'flips', params)
               }}
             />
-            <button onClick={reload} disabled={loading}>
+            <button
+              onClick={() => {
+                reload()
+                volume.reload()
+              }}
+              disabled={loading}
+            >
               Refresh
             </button>
           </div>
         </div>
         {error && <p className="error">{error}</p>}
+        {volume.error && <p className="error">Sales per day unavailable: {volume.error}</p>}
 
         {loading && !prices.length ? (
           <p className="hint">Loading prices for {itemIds.length} items…</p>
@@ -89,6 +98,9 @@ export default function FlipsPage({ server }: { server: ServerId }) {
                   <th className="num">Fees</th>
                   <th className="num">Profit</th>
                   <th className="num">Margin</th>
+                  <th className="num" title="Average sold per day in the sell market over the last 7 days">
+                    Sold/day
+                  </th>
                   <th className="num">Prices</th>
                 </tr>
               </thead>
@@ -109,6 +121,9 @@ export default function FlipsPage({ server }: { server: ServerId }) {
                     <td className="num muted">{formatSilver(f.fees)}</td>
                     <td className="num strong pos">{formatSilver(f.profit)}</td>
                     <td className="num">{formatPercent(f.margin)}</td>
+                    <td className="num">
+                      {formatPerDay(volume.error ? null : (flipVolume(f, volume.sales) ?? undefined))}
+                    </td>
                     <td className="num muted">{formatAge(f.oldestPriceDate)}</td>
                   </tr>
                 ))}
@@ -124,7 +139,7 @@ export default function FlipsPage({ server }: { server: ServerId }) {
         <p className="hint footer">
           Profit is per item after tax and setup fees. It doesn't include transport risk: routes into Caerleon and the
           Black Market cross red zones. Prices are for normal quality and only as fresh as the last scan of each market,
-          so check in game before committing a big haul.
+          so check in game before committing a big haul. Sold/day is the 7-day average in the sell market.
         </p>
       </main>
     </div>

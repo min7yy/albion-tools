@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { BLACK_MARKET, DEFAULT_FLIP_FILTERS, flipsForItem, rankFlips } from './flips'
+import { BLACK_MARKET, DEFAULT_FLIP_FILTERS, flipVolume, flipsForItem, rankFlips } from './flips'
+import type { SalesLookup } from '../api/history'
 import { RESOURCE_ITEMS, flipItemsFor } from './items'
 import { flipMarketsFor } from './markets'
 import type { Price } from '../api/prices'
@@ -70,6 +71,22 @@ describe('rankFlips', () => {
   it('hides stale prices', () => {
     const old = lookup([p('T4_BAG', 'Martlock', 1000, 900, new Date(NOW - 48 * 3600_000)), p('T4_BAG', BLACK_MARKET, null, 1800)])
     expect(rankFlips(flipsForItem('T4_BAG', markets, old, instantBuyOrderSell), DEFAULT_FLIP_FILTERS, NOW)).toEqual([])
+  })
+
+  // Bags barely sell on the Black Market but move in Lymhurst.
+  const sales: SalesLookup = (_id, city) => ({ perDay: city === 'Lymhurst' ? 40 : 0.2, avgPrice: null })
+
+  it('picks the best route among items that actually sell once sales load', () => {
+    const ranked = rankFlips(flips, DEFAULT_FLIP_FILTERS, NOW, sales)
+    expect(ranked).toHaveLength(1)
+    expect(ranked[0].sellMarket).toBe('Lymhurst')
+    expect(flipVolume(ranked[0], sales)).toBe(40)
+    expect(flipVolume(ranked[0], undefined)).toBeNull()
+  })
+
+  it('sorts by sales per day', () => {
+    const ranked = rankFlips(flips, { ...DEFAULT_FLIP_FILTERS, bestRouteOnly: false, minDailySales: null, sortBy: 'volume' }, NOW, sales)
+    expect(ranked[0].sellMarket).toBe('Lymhurst')
   })
 })
 
