@@ -1,4 +1,5 @@
 import type { Price } from '../api/prices'
+import type { SaleAverageLookup } from '../api/history'
 import { weaponItemId, type Weapon } from './weapons'
 
 /** Market qualities: 1 Normal, 2 Good, 3 Outstanding, 4 Excellent, 5 Masterpiece. */
@@ -21,22 +22,35 @@ export interface OfferSettings {
   /** Sell orders older than this are ignored, since the item has probably sold. */
   maxAgeHours: number
   now: number
+  /** Last week's average sale price, used where a city has no fresh sell order. */
+  averages?: SaleAverageLookup
 }
 
 export interface Offer {
   price: number
   city: string
   date: Date
+  /** The price is last week's average sale, not a current sell order. */
+  average?: boolean
 }
 
-/** Cheapest fresh sell order for an item at one quality across the given cities. */
+/**
+ * Cheapest offer for an item at one quality across the given cities: a fresh sell order, or
+ * where a city has none, last week's average sale price there.
+ */
 export function cheapestOffer(itemId: string, quality: number, prices: QualityPriceLookup, settings: OfferSettings): Offer | null {
   const cutoff = settings.now - settings.maxAgeHours * 3600_000
   let best: Offer | null = null
   for (const city of settings.cities) {
     const p = prices(itemId, city, quality)
-    if (!p?.sellMin || !p.sellMinDate || p.sellMinDate.getTime() < cutoff) continue
-    if (!best || p.sellMin < best.price) best = { price: p.sellMin, city, date: p.sellMinDate }
+    let offer: Offer | null = null
+    if (p?.sellMin && p.sellMinDate && p.sellMinDate.getTime() >= cutoff) {
+      offer = { price: p.sellMin, city, date: p.sellMinDate }
+    } else {
+      const avg = settings.averages?.(itemId, city, quality)
+      if (avg) offer = { price: avg, city, date: new Date(settings.now), average: true }
+    }
+    if (offer && (!best || offer.price < best.price)) best = offer
   }
   return best
 }

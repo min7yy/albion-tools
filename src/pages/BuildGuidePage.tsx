@@ -14,6 +14,7 @@ import { specFromLevels } from '../buildguide/mastery'
 import { ItemIcon } from '../components/ItemIcon'
 import { HowItWorks, MoreOptions } from '../components/MoreOptions'
 import { usePrices } from '../usePrices'
+import { useSaleAverages } from '../useSaleAverages'
 import { useStoredState, withDefaults } from '../useStoredState'
 import { formatAge, formatPercent, formatSilver, tierLabel } from '../format'
 
@@ -66,6 +67,15 @@ function Version({ o }: { o: Pick<WeaponOption, 'tier' | 'ench' | 'quality'> }) 
   )
 }
 
+/** Marks a price that is last week's average sale rather than a current listing. */
+function Avg() {
+  return (
+    <span className="tag-avg" title="No current listing here; this is last week's average sale price">
+      {' '}avg
+    </span>
+  )
+}
+
 /** The same item power for less: every version of one piece that matches it, with its cheapest city. */
 function Ladder({
   piece,
@@ -106,10 +116,12 @@ function Ladder({
               <td className="num">
                 <span className="slot">{setCity}</span>
                 {here ? formatSilver(here) : '–'}
+                {here && r.averaged.has(setCity) && <Avg />}
               </td>
               <td className={`num${bestPrice === cheapest ? ' pos' : ''}`}>
                 <span className="slot">{bestCity}</span>
                 {formatSilver(bestPrice)}
+                {r.averaged.has(bestCity) && <Avg />}
               </td>
             </tr>
           )
@@ -159,6 +171,8 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
     return [...weaponItemIds(weapons), ...gearItemIds([...gear.values()])]
   }, [summary, weapons, gearFor])
   const { prices, loading, error, fetchedAt, reload } = usePrices(server, itemIds, [...MARKET_CITIES], QUALITIES)
+  // Fills gaps where a city has no current listing; the page shows listings first and updates when this lands.
+  const history = useSaleAverages(server, itemIds, [...MARKET_CITIES], QUALITIES)
 
   const offers = useMemo<OfferSettings>(
     () => ({
@@ -166,8 +180,9 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
       maxAgeHours: settings.maxAgeHours,
       // Ages are measured from when the prices were loaded; with no prices there is nothing to age.
       now: fetchedAt?.getTime() ?? 0,
+      averages: history.averages,
     }),
-    [settings.cities, settings.maxAgeHours, fetchedAt],
+    [settings.cities, settings.maxAgeHours, fetchedAt, history.averages],
   )
   const lookup = useMemo(() => indexQualityPrices(prices), [prices])
   const spec = specFromLevels(settings.mastery, settings.spec)
@@ -374,7 +389,14 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                   </span>
                   <span className="build-price">
                     <strong>{formatSilver(r.price)}</strong>
-                    <small>in {r.set.city}</small>
+                    <small>
+                      in {r.set.city}
+                      {r.set.picks.some((p) => p.option.average) && (
+                        <span className="tag-avg" title="Some pieces have no current listing; their price is last week's average sale">
+                          {' '}incl. avg
+                        </span>
+                      )}
+                    </small>
                   </span>
                   <span className="build-strip">
                     {r.set.picks.map(({ piece, option }) => (
@@ -423,7 +445,10 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                                   <span className="slot">{option.itemPower} IP</span>
                                   <Version o={option} />
                                 </td>
-                                <td className="num">{formatSilver(option.price)}</td>
+                                <td className="num">
+                                  {formatSilver(option.price)}
+                                  {option.average && <Avg />}
+                                </td>
                               </tr>
                               {slotOpen && item && (
                                 <tr className="ladder-row">
@@ -464,7 +489,7 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
         whose versions reach your target average item power. The average counts six slots as the game does, with a
         two-handed weapon filling the off-hand too, and includes your spec. Item power, the tier bonus (+5% of spec per
         tier above T4, none on capes) and the spec numbers come from the game's own files. T8.0, T7.1, T6.2, T5.3 and T4.4
-        share base item power, and quality adds 20 to 100, so the cheapest way there often mixes tiers. Popularity and
+        share base item power, and quality adds 20 to 100, so the cheapest way there often mixes tiers. Where a city has no current listing, last week's average sale price there is used and marked avg. Popularity and
         kill share come from a sample of recent kills
         {summary ? ` (${summary.events.toLocaleString()} kills since ${summary.from}, updated ${formatAge(new Date(summary.updatedAt))})` : ''}
         . Recommended is 70% price and 30% popularity.
