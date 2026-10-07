@@ -127,7 +127,7 @@ describe('bandOptions and equivalenceLadder', () => {
 
   it('lists equivalent versions per city', () => {
     const ladder = equivalenceLadder(weapon, 'MainHand', 800, lookup, settings, 0)
-    expect(ladder.map((r) => [r.tier, r.quality, Object.fromEntries(r.prices)])).toEqual([
+    expect(ladder.map((r) => [r.tier, r.quality, Object.fromEntries([...r.offers].map(([c, o]) => [c, o.price]))])).toEqual([
       [4, 5, { Lymhurst: 2000 }],
       [5, 1, { Martlock: 3000 }],
     ])

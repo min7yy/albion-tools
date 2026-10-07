@@ -19,5 +19,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "scripts/collect-meta.ts"]
+  "include": ["vite.config.ts", "scripts/collect-meta.ts", "scripts/aodp.ts", "scripts/snapshot-prices.ts", "scripts/archive-prices.ts"]
 }
