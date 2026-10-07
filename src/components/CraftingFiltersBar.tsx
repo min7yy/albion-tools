@@ -2,7 +2,7 @@ import { CRAFTING_CITIES } from '../pages/craftingCities'
 import { ENCHANTMENTS, TIERS } from '../api/items'
 import { CATEGORIES, CATEGORY_LABELS, subLabel } from '../crafting/data'
 import { BLACK_MARKET } from '../crafting/evaluate'
-import type { CraftingFilters, SellLocation, SortKey } from '../crafting/rank'
+import { QUALITIES, type CraftingFilters, type SellLocation, type SortKey } from '../crafting/rank'
 
 interface Props {
   filters: CraftingFilters
@@ -93,6 +93,16 @@ export function CraftingFiltersBar({ filters, onChange }: Props) {
           <option value="same">Same city</option>
           <option value={BLACK_MARKET}>Black Market</option>
           <option value="Caerleon">Caerleon</option>
+        </select>
+      </label>
+      <label>
+        Sell quality
+        <select value={filters.quality} onChange={(e) => set('quality', Number(e.target.value))}>
+          {QUALITIES.map((q) => (
+            <option key={q.value} value={q.value}>
+              {q.label}
+            </option>
+          ))}
         </select>
       </label>
       <label>

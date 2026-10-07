@@ -4,9 +4,11 @@ interface Props {
   settings: RefiningSettings
   onChange: (s: RefiningSettings) => void
   onReset: () => void
+  /** The focus cost reduction setting only affects refining. */
+  showFocusCost?: boolean
 }
 
-export function SettingsPanel({ settings, onChange, onReset }: Props) {
+export function SettingsPanel({ settings, onChange, onReset, showFocusCost = true }: Props) {
   const set = <K extends keyof RefiningSettings>(key: K, value: RefiningSettings[K]) =>
     onChange({ ...settings, [key]: value })
 
@@ -21,20 +23,22 @@ export function SettingsPanel({ settings, onChange, onReset }: Props) {
         <input type="checkbox" checked={settings.premium} onChange={(e) => set('premium', e.target.checked)} />
         Premium (4% tax)
       </label>
-      <label>
-        Focus cost reduction
-        <span className="inline">
-          <input
-            type="number"
-            min={0}
-            max={90}
-            step={1}
-            value={settings.focusCostReduction}
-            onChange={(e) => set('focusCostReduction', Math.min(90, Math.max(0, Number(e.target.value) || 0)))}
-          />
-          %
-        </span>
-      </label>
+      {showFocusCost && (
+        <label>
+          Focus cost reduction
+          <span className="inline">
+            <input
+              type="number"
+              min={0}
+              max={90}
+              step={1}
+              value={settings.focusCostReduction}
+              onChange={(e) => set('focusCostReduction', Math.min(90, Math.max(0, Number(e.target.value) || 0)))}
+            />
+            %
+          </span>
+        </label>
+      )}
       <label>
         Station fee per 100 nutrition
         <input
