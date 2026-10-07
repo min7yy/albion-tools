@@ -1,17 +1,17 @@
-import { RESOURCES } from '../api/items'
-import { REFINING_SPECIALTY } from '../refining/settings'
-import { resultKey } from '../refining/rank'
-import type { RefiningResult } from '../refining/profit'
+import { craftingKey } from '../crafting/rank'
+import type { CraftingResult } from '../crafting/evaluate'
 import { formatAge, formatPercent, formatSilver, tierLabel } from '../format'
+import { ItemIcon } from './ItemIcon'
 
 interface Props {
-  rows: RefiningResult[]
+  rows: CraftingResult[]
   selectedKey: string | null
   onSelect: (key: string) => void
   limit: number
+  showSellCity: boolean
 }
 
-export function RefiningTable({ rows, selectedKey, onSelect, limit }: Props) {
+export function CraftingTable({ rows, selectedKey, onSelect, limit, showSellCity }: Props) {
   if (!rows.length) return <p className="hint">No rows match these filters.</p>
   return (
     <div className="table-wrap">
@@ -20,7 +20,8 @@ export function RefiningTable({ rows, selectedKey, onSelect, limit }: Props) {
           <tr>
             <th>#</th>
             <th>Item</th>
-            <th>City</th>
+            <th>Craft in</th>
+            {showSellCity && <th>Sell at</th>}
             <th className="num">Cost</th>
             <th className="num">Sells for</th>
             <th className="num">Profit</th>
@@ -30,9 +31,8 @@ export function RefiningTable({ rows, selectedKey, onSelect, limit }: Props) {
         </thead>
         <tbody>
           {rows.slice(0, limit).map((r, i) => {
-            const key = resultKey(r)
-            const { tier, enchantment, resource } = r.recipe
-            const specialty = REFINING_SPECIALTY[resource] === r.refineCity
+            const key = craftingKey(r)
+            const { tier, ench, name, id } = r.recipe
             return (
               <tr
                 key={key}
@@ -44,17 +44,13 @@ export function RefiningTable({ rows, selectedKey, onSelect, limit }: Props) {
               >
                 <td className="muted">{i + 1}</td>
                 <td className="item">
-                  <span className={`ench e${enchantment}`}>{tierLabel(tier, enchantment)}</span>{' '}
-                  {RESOURCES[resource].refinedName}
+                  <span className="item-cell">
+                    <ItemIcon id={id} size={28} />
+                    <span className={`ench e${ench}`}>{tierLabel(tier, ench)}</span> {name}
+                  </span>
                 </td>
-                <td>
-                  {r.refineCity}
-                  {specialty && (
-                    <span className="badge" title="This city has the refining bonus for this resource">
-                      bonus
-                    </span>
-                  )}
-                </td>
+                <td>{r.craftCity}</td>
+                {showSellCity && <td>{r.sellCity}</td>}
                 <td className="num">{formatSilver(r.totalCost)}</td>
                 <td className="num">{formatSilver(r.netRevenue)}</td>
                 <td className={`num strong ${r.profit === null ? '' : r.profit >= 0 ? 'pos' : 'neg'}`}>
