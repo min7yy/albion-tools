@@ -19,6 +19,11 @@ const SERVERS: Record<string, string> = {
 const PAGE = 51
 const MAX_OFFSET = 1000
 
+// Asia alone can log over 1,000 kills in half an hour, more than one pass can page through, so
+// a run keeps polling for COLLECT_MINUTES (0 = a single pass) to catch most of them.
+const COLLECT_MINUTES = Number(process.env.COLLECT_MINUTES ?? 0)
+const POLL_SECONDS = 30
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 async function getPage(base: string, offset: number): Promise<KillEvent[] | null> {
@@ -61,51 +66,65 @@ interface RunStatus {
   error?: string
 }
 
-async function collect(server: string, base: string, folder: string, status: RunStatus): Promise<void> {
-  const statePath = join(folder, `${server}-state.json`)
-  const state = await readState(statePath)
+/** One pass over the newest events, newest first, until it reaches the previous pass. */
+async function collectPass(base: string, state: MetaState, status: RunStatus): Promise<void> {
   const lastSeen = state.lastEventId
   // New kills arrive while we page, pushing events onto the next page, so skip repeats.
   const seen = new Set<number>()
-  let added = 0
   for (let offset = 0; offset <= MAX_OFFSET; offset += PAGE) {
     const events = await getPage(base, offset)
     status.pages++
     if (!events?.length) break
-    if (offset === 0) {
+    if (offset === 0 && events[0].EventId > (status.newestEventId ?? 0)) {
       status.newestEventId = events[0].EventId
       status.newestTime = events[0].TimeStamp
     }
     const fresh = events.filter((e) => !seen.has(e.EventId))
     for (const e of fresh) seen.add(e.EventId)
-    added += addEvents(state, fresh, lastSeen)
-    // Pages run newest first, so stop once we reach events from the previous run.
+    status.added += addEvents(state, fresh, lastSeen)
+    // Pages run newest first, so stop once we reach events from the previous pass.
     if (events.some((e) => e.EventId <= lastSeen)) break
     await sleep(500)
   }
+}
+
+async function save(server: string, state: MetaState, folder: string): Promise<void> {
   const now = new Date()
   pruneState(state, now)
-  await writeFile(statePath, JSON.stringify(state))
+  await writeFile(join(folder, `${server}-state.json`), JSON.stringify(state))
   await writeFile(join(folder, `${server}.json`), JSON.stringify(summarize(state, server, now)))
-  status.added = added
-  console.log(`${server}: ${added} new events`)
 }
 
 const folder = process.argv[2]
 if (!folder) throw new Error('Usage: collect-meta.ts <folder>')
 await mkdir(folder, { recursive: true })
-let failures = 0
+const servers = Object.entries(SERVERS)
 const statuses: Record<string, RunStatus> = {}
-for (const [server, base] of Object.entries(SERVERS)) {
-  const status: RunStatus = (statuses[server] = { at: new Date().toISOString(), added: 0, pages: 0 })
-  try {
-    await collect(server, base, folder, status)
-  } catch (e) {
-    // One server being down shouldn't lose the others' data.
-    failures++
-    status.error = e instanceof Error ? e.message : String(e)
-    console.error(`${server}: ${status.error}`)
-  }
+const states: Record<string, MetaState> = {}
+for (const [server] of servers) {
+  statuses[server] = { at: new Date().toISOString(), added: 0, pages: 0 }
+  states[server] = await readState(join(folder, `${server}-state.json`))
 }
-await writeFile(join(folder, 'status.json'), JSON.stringify(statuses, null, 1))
-if (failures === Object.keys(SERVERS).length) process.exit(1)
+const until = Date.now() + COLLECT_MINUTES * 60_000
+let passes = 0
+do {
+  if (passes++) await sleep(POLL_SECONDS * 1000)
+  for (const [server, base] of servers) {
+    const status = statuses[server]
+    try {
+      await collectPass(base, states[server], status)
+      delete status.error
+    } catch (e) {
+      // One server being down shouldn't lose the others' data; the next pass tries again.
+      status.error = e instanceof Error ? e.message : String(e)
+      console.error(`${server}: ${status.error}`)
+    }
+  }
+} while (Date.now() < until)
+
+for (const [server] of servers) {
+  await save(server, states[server], folder)
+  console.log(`${server}: ${statuses[server].added} new events over ${passes} passes`)
+}
+await writeFile(join(folder, 'status.json'), JSON.stringify({ passes, servers: statuses }, null, 1))
+if (servers.every(([server]) => statuses[server].error)) process.exit(1)
