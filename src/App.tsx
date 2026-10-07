@@ -7,11 +7,13 @@ import RefiningPage from './pages/RefiningPage'
 // Crafting and flips carry ~6,500 recipes, so they load only when opened.
 const CraftingPage = lazy(() => import('./pages/CraftingPage'))
 const FlipsPage = lazy(() => import('./pages/FlipsPage'))
+const BuildGuidePage = lazy(() => import('./pages/BuildGuidePage'))
 
 const PAGES = [
   { id: 'refining', label: 'Refining' },
   { id: 'crafting', label: 'Crafting' },
   { id: 'flips', label: 'Flips' },
+  { id: 'builds', label: 'Build guide' },
 ] as const
 type PageId = (typeof PAGES)[number]['id']
 
@@ -54,7 +56,13 @@ export default function App() {
         <RefiningPage server={server} />
       ) : (
         <Suspense fallback={<p className="hint">Loading…</p>}>
-          {page === 'crafting' ? <CraftingPage server={server} /> : <FlipsPage server={server} />}
+          {page === 'crafting' ? (
+            <CraftingPage server={server} />
+          ) : page === 'flips' ? (
+            <FlipsPage server={server} />
+          ) : (
+            <BuildGuidePage server={server} />
+          )}
         </Suspense>
       )}
     </div>
