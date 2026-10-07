@@ -13,7 +13,7 @@ export const SERVERS: Server[] = [
   { id: 'asia', label: 'Asia', apiBase: 'https://east.albion-online-data.com' },
 ]
 
-export const DEFAULT_SERVER: ServerId = 'americas'
+export const DEFAULT_SERVER: ServerId = 'asia'
 
 export function getServer(id: ServerId): Server {
   const server = SERVERS.find((s) => s.id === id)
