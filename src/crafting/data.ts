@@ -14,6 +14,8 @@ export interface CraftRecipe {
   name: string
   category: string
   sub: string
+  /** Game crafting category (e.g. "sword", "leather_armor"); decides city crafting bonuses. */
+  craft?: string
   /** Items produced per craft. */
   amount: number
   /** Focus cost per craft. */
@@ -28,12 +30,15 @@ interface CraftingData {
   source: string
   recipes: CraftRecipe[]
   ingredientNames: Record<string, string>
+  /** City → crafting category → extra production bonus in %, from the game's craftingmodifiers. */
+  cityBonuses: Record<string, Record<string, number>>
 }
 
 const typed = data as unknown as CraftingData
 
 export const CRAFT_RECIPES: CraftRecipe[] = typed.recipes
 export const INGREDIENT_NAMES: Record<string, string> = typed.ingredientNames
+export const CITY_CRAFTING_BONUSES: Record<string, Record<string, number>> = typed.cityBonuses
 
 export const CATEGORY_LABELS: Record<string, string> = {
   weapons: 'Weapons',

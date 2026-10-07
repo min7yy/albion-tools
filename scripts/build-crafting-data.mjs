@@ -1,6 +1,6 @@
 // Builds src/data/crafting.json from the game's item data (github.com/ao-data/ao-bin-dumps).
-// Usage: node scripts/build-crafting-data.mjs [items.json] [formatted/items.json]
-// With no arguments it downloads both files.
+// Usage: node scripts/build-crafting-data.mjs [items.json] [formatted/items.json] [craftingmodifiers.json]
+// With no arguments it downloads all three files.
 import { readFile, writeFile } from 'node:fs/promises'
 
 const DUMP = 'https://raw.githubusercontent.com/ao-data/ao-bin-dumps/master'
@@ -27,7 +27,22 @@ function marketId(name, ench) {
   return `${name}@${n}`
 }
 
-const [itemsArg = `${DUMP}/items.json`, namesArg = `${DUMP}/formatted/items.json`] = process.argv.slice(2)
+// Market cities by the cluster id craftingmodifiers.json uses.
+const CITY_CLUSTERS = {
+  '0000': 'Thetford',
+  1000: 'Lymhurst',
+  2000: 'Bridgewatch',
+  3004: 'Martlock',
+  4000: 'Fort Sterling',
+  3003: 'Caerleon',
+  5000: 'Brecilien',
+}
+
+const [
+  itemsArg = `${DUMP}/items.json`,
+  namesArg = `${DUMP}/formatted/items.json`,
+  modifiersArg = `${DUMP}/craftingmodifiers.json`,
+] = process.argv.slice(2)
 const items = (await load(itemsArg)).items
 const names = new Map((await load(namesArg)).map((n) => [n.UniqueName, n.LocalizedNames?.['EN-US']]))
 
@@ -66,6 +81,7 @@ function toRecipe(item, req, ench) {
     name: fullName.replace(TIER_PREFIX, ''),
     category: item['@shopcategory'],
     sub: item['@shopsubcategory1'],
+    craft: item['@craftingcategory'],
     amount: Number(req['@amountcrafted'] || 1),
     focus: Number(req['@craftingfocus'] || 0),
     itemValue: resources.reduce((sum, r) => sum + r.value * r.count, 0),
@@ -98,5 +114,15 @@ for (const r of recipes) {
   }
 }
 
-await writeFile(OUT, JSON.stringify({ source: DUMP, recipes, ingredientNames }) + '\n')
+// City crafting specialties: extra production bonus (in %) per crafting category, e.g. swords in Lymhurst.
+const cityBonuses = {}
+for (const loc of list((await load(modifiersArg)).craftingmodifiers.craftinglocation)) {
+  const city = CITY_CLUSTERS[loc['@clusterid']]
+  if (!city) continue
+  cityBonuses[city] = Object.fromEntries(
+    list(loc.craftingmodifier).map((m) => [m['@name'], Math.round(Number(m['@value']) * 100)]),
+  )
+}
+
+await writeFile(OUT, JSON.stringify({ source: DUMP, recipes, ingredientNames, cityBonuses }) + '\n')
 console.log(`Wrote ${recipes.length} recipes to ${OUT.pathname}`)

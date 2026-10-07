@@ -111,8 +111,8 @@ export default function CraftingPage({ server }: { server: ServerId }) {
         </div>
         <p className="hint footer">
           Crafted items are priced at the sell quality you pick ({qualityLabel}); materials are always Normal. Return rates
-          use the 18% city bonus; city crafting specialties aren't included yet, so use the return rate override if
-          you craft in a bonus city. Selling to the Black Market is always an instant sell.
+          use the 18% city bonus plus the city's crafting specialty from the game data (rows marked "bonus", +15%).
+          Selling to the Black Market is always an instant sell.
         </p>
       </main>
     </div>
