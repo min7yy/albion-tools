@@ -8,7 +8,7 @@ import { SLIDER_STEPS, budgetToSlider, sliderToBudget } from '../buildguide/slid
 import { FIGHT_FILTERS, SORT_MODES, rankWithMeta, weaponMeta, type FightFilter, type SortMode } from '../buildguide/meta'
 import { useMeta } from '../useMeta'
 import { GEAR, SLOT_LABELS, gearItemIds, type Gear } from '../buildguide/gear'
-import { bestSetAnyCity, cheapestSet, dearestSet, planSets, usualGear, type SetChoice } from '../buildguide/sets'
+import { cheapestSet, dearestSet, homeAndBest, planSets, usualGear, type SetChoice } from '../buildguide/sets'
 import { specBonus } from '../buildguide/power'
 import { ItemIcon } from '../components/ItemIcon'
 import { usePrices } from '../usePrices'
@@ -27,6 +27,8 @@ interface BuildGuideSettings {
   mode: 'weapon' | 'set'
   /** Item power from weapon spec; higher tiers multiply it (the mastery modifier). */
   specItemPower: number
+  /** Full sets are bought here, with a pointer to a better city when the trip is worth it. '' for none. */
+  homeCity: string
 }
 
 const DEFAULTS: BuildGuideSettings = {
@@ -39,6 +41,7 @@ const DEFAULTS: BuildGuideSettings = {
   sort: 'recommended',
   mode: 'set',
   specItemPower: 100,
+  homeCity: '',
 }
 const AGE_OPTIONS = [6, 24, 48, 168]
 
@@ -53,6 +56,8 @@ interface Row {
   frontier?: WeaponOption[]
   /** Set mode: the version bought for each slot. */
   set?: SetChoice
+  /** A notably stronger set for the same budget in another city than home. */
+  elsewhere?: SetChoice | null
 }
 
 const formatStrength = (s: number) => `${s >= 1 ? '+' : '−'}${Math.round(Math.abs(s - 1) * 100)}%`
@@ -119,10 +124,13 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
     [weapons, lookup, offerSettings, spec],
   )
   // Each set is priced one city at a time: every piece comes from the same market.
-  const plans = useMemo(
-    () => (setMode ? values.map((v) => planSets(v.weapon, gearFor.get(v.weapon.base) ?? [], lookup, offerSettings, spec)) : []),
-    [setMode, values, gearFor, lookup, offerSettings, spec],
-  )
+  const home = settings.homeCity || null
+  const plans = useMemo(() => {
+    if (!setMode) return []
+    // Home is always priced, even when it isn't ticked.
+    const cities = home && !offerSettings.cities.includes(home) ? [...offerSettings.cities, home] : offerSettings.cities
+    return values.map((v) => planSets(v.weapon, gearFor.get(v.weapon.base) ?? [], lookup, { ...offerSettings, cities }, spec))
+  }, [setMode, values, gearFor, lookup, offerSettings, spec, home])
 
   const range = useMemo(() => {
     if (!setMode) return budgetRange(values)
@@ -134,19 +142,20 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
   const rows = useMemo(() => {
     const list: Row[] = setMode
       ? plans.flatMap((cityPlans) => {
-          const choice = bestSetAnyCity(cityPlans, settings.budget)
-          return choice
-            ? [
-                {
-                  weapon: cityPlans[0].weapon,
-                  itemPower: choice.itemPower,
-                  strength: choice.strength,
-                  price: choice.price,
-                  best: choice.picks[0].option,
-                  set: choice,
-                },
-              ]
-            : []
+          const found = homeAndBest(cityPlans, settings.budget, home)
+          if (!found) return []
+          const { choice, elsewhere } = found
+          return [
+            {
+              weapon: cityPlans[0].weapon,
+              itemPower: choice.itemPower,
+              strength: choice.strength,
+              price: choice.price,
+              best: choice.picks[0].option,
+              set: choice,
+              elsewhere,
+            },
+          ]
         })
       : rankForBudget(values, settings.budget).map((r) => ({
           weapon: r.weapon,
@@ -156,7 +165,7 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
           frontier: r.frontier,
         }))
     return rankWithMeta(list, meta, settings.sort)
-  }, [setMode, plans, values, settings.budget, meta, settings.sort])
+  }, [setMode, plans, values, settings.budget, meta, settings.sort, home])
   const detail = rows.find((r) => r.weapon.base === selected)
 
   const toggleCity = (city: string) =>
@@ -223,6 +232,19 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
 
         <fieldset className="panel">
           <legend>{settings.mode === 'set' ? 'Cities to compare' : 'Buy in'}</legend>
+          {settings.mode === 'set' && (
+            <label>
+              Home city
+              <select value={settings.homeCity} onChange={(e) => set({ homeCity: e.target.value })}>
+                <option value="">None, use the best city</option>
+                {MARKET_CITIES.map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {MARKET_CITIES.map((city) => (
             <label key={city} className="check">
               <input type="checkbox" checked={settings.cities.includes(city)} onChange={() => toggleCity(city)} />
@@ -360,7 +382,17 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                           </span>
                         ) : null}
                       </td>
-                      <td>{r.set?.city ?? r.best.city}</td>
+                      <td>
+                        {r.set?.city ?? r.best.city}
+                        {r.elsewhere && (
+                          <span
+                            className="tag-2h"
+                            title={`${r.elsewhere.city} sells a ${formatStrength(r.elsewhere.strength / r.set!.strength)} stronger set for this budget`}
+                          >
+                            {r.elsewhere.city} {formatStrength(r.elsewhere.strength / r.set!.strength)}
+                          </span>
+                        )}
+                      </td>
                       {!setMode && <td className="num muted">{formatAge(r.best.date)}</td>}
                     </tr>
                   ))}
@@ -384,6 +416,14 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                     power, {formatStrength(detail.set.strength)} stronger than the same set at T4.0. Uses the gear most often
                     seen with this weapon, or the next most common when {detail.set.city} doesn't sell it.
                   </p>
+                  {detail.elsewhere && (
+                    <p className="hint">
+                      Worth the trip? {detail.elsewhere.city} sells a set{' '}
+                      {formatStrength(detail.elsewhere.strength / detail.set.strength)} stronger for{' '}
+                      {formatSilver(detail.elsewhere.price)} silver
+                      {detail.elsewhere.missing.length < detail.set.missing.length ? ', and it has every piece' : ''}.
+                    </p>
+                  )}
                   <table className="breakdown set">
                     <tbody>
                       {detail.set.picks.map(({ piece, option }) => (
@@ -447,8 +487,8 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
           the cities you picked. Popularity and kill share come from a sample of recent kills
           {summary ? ` (${summary.events.toLocaleString()} kills since ${summary.from}, updated ${formatAge(new Date(summary.updatedAt))})` : ''}
           . Recommended is 70% strength and 30% popularity. Group kills credit every attacker, so compare kill share
-          within one fight size. Full sets are bought in one city: each city is priced separately and the strongest set the
-          budget buys there wins. Strength uses the game's own scaling per 100 item power: weapon damage +9.2% (two-handed)
+          within one fight size. Full sets are bought in one city: your home city if you set one (with a note when another city
+          sells a set at least 3% stronger for the budget), otherwise the city with the strongest set. Strength uses the game's own scaling per 100 item power: weapon damage +9.2% (two-handed)
           or +8.3% (one-handed), hit points +6% (armour 50%, helmet and shoes 25% each) and resistances +3% (armour only),
           so the weapon and armour get most of the budget and the cape the least. Armour spells are assumed to be about 15%
           of your output.

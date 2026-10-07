@@ -202,3 +202,32 @@ export function dearestSet(plans: SetPlan[]): number | null {
   const prices = plans.filter((p) => p.front.length).map((p) => p.front[p.front.length - 1].price)
   return prices.length ? Math.max(...prices) : null
 }
+
+/** A trip elsewhere is only suggested when it buys at least this much more strength. */
+export const WORTH_THE_TRIP = 1.03
+
+/**
+ * The set to buy in the home city, plus the best set elsewhere when it's notably stronger for
+ * the same budget (or complete where home's isn't). With no home city, or nothing affordable
+ * there, the best city wins outright.
+ */
+export function homeAndBest(
+  plans: SetPlan[],
+  budget: number,
+  home: string | null,
+): { choice: SetChoice; elsewhere: SetChoice | null } | null {
+  const best = bestSetAnyCity(plans, budget)
+  if (!best) return null
+  const homePlan = home ? plans.find((p) => p.city === home) : undefined
+  const atHome = homePlan ? bestSet(homePlan, budget) : null
+  if (!atHome) return { choice: best, elsewhere: null }
+  const away = bestSetAnyCity(
+    plans.filter((p) => p !== homePlan),
+    budget,
+  )
+  const better =
+    away &&
+    (away.missing.length < atHome.missing.length ||
+      (away.missing.length === atHome.missing.length && away.strength >= atHome.strength * WORTH_THE_TRIP))
+  return { choice: atHome, elsewhere: better ? away : null }
+}

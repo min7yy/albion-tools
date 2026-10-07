@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MetaSummary } from '../meta/aggregate'
-import { bestSet, bestSetAnyCity, cheapestSet, dearestSet, planSet, planSets, usualGear, type SetPiece } from './sets'
+import { bestSet, bestSetAnyCity, cheapestSet, dearestSet, homeAndBest, planSet, planSets, usualGear, type SetPiece } from './sets'
 import { indexQualityPrices } from './value'
 import type { Price } from '../api/prices'
 import type { WeaponOption } from './value'
@@ -132,6 +132,19 @@ describe('planSets', () => {
     // Where the usual item is sold, it is kept.
     const kept = planSets(weapon, [[helmet, usual]], lookup, settings)
     expect(bestSetAnyCity(kept, 10_000)?.picks[1].piece.rank).toBe(0)
+  })
+
+  it('buys at home and points to a notably stronger city', () => {
+    const plans = planSets(weapon, [[helmet]], lookup, settings)
+    // At 7,000 Martlock buys a T5 weapon set; Lymhurst only T4 weapon with T5 helmet.
+    const fromLymhurst = homeAndBest(plans, 7000, 'Lymhurst')
+    expect(fromLymhurst?.choice.city).toBe('Lymhurst')
+    expect(fromLymhurst?.elsewhere?.city).toBe('Martlock')
+    // From Martlock, Lymhurst is weaker, so no trip is suggested.
+    expect(homeAndBest(plans, 7000, 'Martlock')).toMatchObject({ choice: { city: 'Martlock' }, elsewhere: null })
+    // No home: the best city wins. Home can't afford anything: the best city that can.
+    expect(homeAndBest(plans, 7000, null)?.choice.city).toBe('Martlock')
+    expect(homeAndBest(plans, 4700, 'Martlock')).toMatchObject({ choice: { city: 'Lymhurst' }, elsewhere: null })
   })
 
   it('adds the mastery share of spec to higher-tier weapons', () => {
