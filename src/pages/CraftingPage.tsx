@@ -10,7 +10,6 @@ import {
   evaluateAllCrafting,
   rankCrafting,
   recipesFor,
-  type CraftingFilters,
 } from '../crafting/rank'
 import { DEFAULT_SETTINGS } from '../refining/settings'
 import { SettingsPanel } from '../components/SettingsPanel'
@@ -20,6 +19,9 @@ import { ProfitBreakdown } from '../components/ProfitBreakdown'
 import { usePrices } from '../usePrices'
 import { useStoredState, withDefaults } from '../useStoredState'
 import { formatAge } from '../format'
+import { useLinkedFilters } from '../useLinkedFilters'
+import { buildShareUrl, encodeFilters } from '../shareLink'
+import { ShareButton } from '../components/ShareButton'
 import { CRAFTING_CITIES, CRAFTING_MARKETS } from './craftingCities'
 
 const ROW_LIMIT = 200
@@ -31,12 +33,8 @@ export default function CraftingPage({ server }: { server: ServerId }) {
     DEFAULT_SETTINGS,
     withDefaults(DEFAULT_SETTINGS),
   )
-  const [filters, setFilters] = useStoredState<CraftingFilters>(
-    'albion-tools.crafting.filters',
-    DEFAULT_CRAFTING_FILTERS,
-    withDefaults(DEFAULT_CRAFTING_FILTERS),
-  )
-  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [filters, setFilters, linkedRow] = useLinkedFilters('crafting', 'albion-tools.crafting.filters', DEFAULT_CRAFTING_FILTERS)
+  const [selectedKey, setSelectedKey] = useState<string | null>(linkedRow)
 
   const recipes = useMemo(() => recipesFor(CRAFT_RECIPES, filters), [filters])
   const itemIds = useMemo(() => craftingItemIds(recipes), [recipes])
@@ -63,6 +61,14 @@ export default function CraftingPage({ server }: { server: ServerId }) {
             <span className="hint">
               {loading ? 'Loading prices…' : fetchedAt ? `Prices loaded ${formatAge(fetchedAt)}` : ''}
             </span>
+            <ShareButton
+              getUrl={() => {
+                const params = encodeFilters(filters, DEFAULT_CRAFTING_FILTERS)
+                params.set('server', server)
+                if (selectedKey) params.set('sel', selectedKey)
+                return buildShareUrl(window.location.href, 'crafting', params)
+              }}
+            />
             <button onClick={reload} disabled={loading}>
               Refresh
             </button>
