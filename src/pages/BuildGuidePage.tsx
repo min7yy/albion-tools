@@ -92,13 +92,13 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
 
   // In set mode each weapon is paired with the gear most often seen with it in recent kills.
   const gearFor = useMemo(() => {
-    const map = new Map<string, Gear[]>()
+    const map = new Map<string, Gear[][]>()
     if (setMode && summary) for (const w of weapons) map.set(w.base, usualGear(w, summary))
     return map
   }, [setMode, weapons, summary])
   const itemIds = useMemo(() => {
     const gear = new Map<string, Gear>()
-    for (const list of gearFor.values()) for (const g of list) gear.set(g.base, g)
+    for (const slots of gearFor.values()) for (const g of slots.flat()) gear.set(g.base, g)
     return [...weaponItemIds(weapons), ...gearItemIds([...gear.values()])]
   }, [weapons, gearFor])
   const { prices, loading, error, fetchedAt, reload } = usePrices(server, itemIds, [...MARKET_CITIES], QUALITIES)
@@ -382,7 +382,7 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                   <p className="hint">
                     Buy everything in {detail.set.city}: {formatSilver(detail.price)} silver for {detail.itemPower} average item
                     power, {formatStrength(detail.set.strength)} stronger than the same set at T4.0. Uses the gear most often
-                    seen with this weapon.
+                    seen with this weapon, or the next most common when {detail.set.city} doesn't sell it.
                   </p>
                   <table className="breakdown set">
                     <tbody>
@@ -393,6 +393,11 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                             <span className="item-cell">
                               <ItemIcon id={option.itemId} size={24} />
                               {piece.slot === 'MainHand' ? detail.weapon.name : (GEAR.get(piece.base)?.name ?? piece.name)}
+                              {piece.rank > 0 && (
+                                <span className="tag-2h" title="The usual item isn't sold here, so this is the next most common one">
+                                  alt
+                                </span>
+                              )}
                             </span>
                           </td>
                           <td>

@@ -9,6 +9,8 @@ export interface SetPiece {
   base: string
   name: string
   frontier: WeaponOption[]
+  /** 0 for the item most often seen with the weapon, 1 for the next most common, and so on. */
+  rank: number
 }
 
 export interface SetChoice {
@@ -24,35 +26,49 @@ export interface SetChoice {
   missing: GearSlot[]
 }
 
-/** The item most often seen with a weapon in each slot (no off-hand for two-handed weapons). */
-export function usualGear(weapon: Weapon, summary: MetaSummary): Gear[] {
+/** Items considered per slot: the usual one, then the next most common if a city doesn't sell it. */
+export const GEAR_CHOICES = 3
+
+/**
+ * The items most often seen with a weapon in each slot, most common first (no off-hand for
+ * two-handed weapons). Slots with no known items are left out.
+ */
+export function usualGear(weapon: Weapon, summary: MetaSummary, perSlot = GEAR_CHOICES): Gear[][] {
   const seen = summary.weapons[weapon.base]?.gear
   if (!seen) return []
-  const out: Gear[] = []
+  const out: Gear[][] = []
   for (const slot of GEAR_SLOTS) {
     if (slot === 'OffHand' && weapon.twoHanded) continue
-    // Most common first; skip anything we have no item data for (e.g. event items).
-    const pick = seen[slot]?.map(([base]) => GEAR.get(base)).find((g) => g && g.slot === slot)
-    if (pick) out.push(pick)
+    // Skip anything we have no item data for (e.g. event items).
+    const known = (seen[slot] ?? []).map(([base]) => GEAR.get(base)).filter((g): g is Gear => g?.slot === slot)
+    if (known.length) out.push(known.slice(0, perSlot))
   }
   return out
 }
 
-/** Version frontiers for a weapon and its usual gear, priced in one city. */
+/**
+ * Version frontiers for a weapon and its gear, priced in one city. Each slot uses the most common
+ * item the city sells; a slot where it sells none of them keeps the usual item with no versions.
+ */
 export function setPieces(
   weapon: Weapon,
-  gear: Gear[],
+  gear: Gear[][],
   prices: QualityPriceLookup,
   settings: OfferSettings,
   specItemPower = 0,
 ): SetPiece[] {
-  const piece = (slot: SetSlot, item: Weapon | Gear, bonus?: (tier: number) => number): SetPiece => ({
+  const piece = (slot: SetSlot, item: Weapon | Gear, rank: number, bonus?: (tier: number) => number): SetPiece => ({
     slot,
     base: item.base,
     name: item.name,
     frontier: valueFrontier(weaponOptions(item, prices, settings, bonus)),
+    rank,
   })
-  return [piece('MainHand', weapon, (tier) => specBonus(tier, specItemPower)), ...gear.map((g) => piece(g.slot, g))]
+  const slots = gear.map((choices) => {
+    const pieces = choices.map((g, rank) => piece(g.slot, g, rank))
+    return pieces.find((p) => p.frontier.length > 0) ?? pieces[0]
+  })
+  return [piece('MainHand', weapon, 0, (tier) => specBonus(tier, specItemPower)), ...slots]
 }
 
 interface FrontPoint {
@@ -120,7 +136,7 @@ export function planSet(weapon: Weapon, city: string, pieces: SetPiece[]): SetPl
 /** One plan per city, each pricing the whole set in that city only. */
 export function planSets(
   weapon: Weapon,
-  gear: Gear[],
+  gear: Gear[][],
   prices: QualityPriceLookup,
   settings: OfferSettings,
   specItemPower = 0,
