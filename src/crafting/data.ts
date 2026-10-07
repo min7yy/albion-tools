@@ -1,4 +1,6 @@
 import data from '../data/crafting.json'
+import { itemName } from '../api/items'
+import { tierLabel } from '../format'
 
 /** One crafting recipe as stored in src/data/crafting.json (see scripts/build-crafting-data.mjs). */
 export interface CraftRecipe {
@@ -61,3 +63,12 @@ export const CATEGORIES: { id: string; subs: string[] }[] = Object.keys(CATEGORY
     a === 'other' ? 1 : b === 'other' ? -1 : a.localeCompare(b),
   ),
 }))
+
+const RECIPE_BY_ID = new Map(CRAFT_RECIPES.map((r) => [r.id, r]))
+
+/** Readable name for any crafted item, ingredient or resource id, e.g. "T6.2 Kingmaker". */
+export function craftItemName(id: string): string {
+  const recipe = RECIPE_BY_ID.get(id)
+  if (recipe) return `${tierLabel(recipe.tier, recipe.ench)} ${recipe.name}`
+  return INGREDIENT_NAMES[id] ?? itemName(id)
+}

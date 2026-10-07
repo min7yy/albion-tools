@@ -4,12 +4,14 @@ import { useServer } from './useServer'
 import { useHashRoute } from './useHashRoute'
 import RefiningPage from './pages/RefiningPage'
 
-// The crafting page carries ~6,500 recipes, so it loads only when opened.
+// Crafting and flips carry ~6,500 recipes, so they load only when opened.
 const CraftingPage = lazy(() => import('./pages/CraftingPage'))
+const FlipsPage = lazy(() => import('./pages/FlipsPage'))
 
 const PAGES = [
   { id: 'refining', label: 'Refining' },
   { id: 'crafting', label: 'Crafting' },
+  { id: 'flips', label: 'Flips' },
 ] as const
 type PageId = (typeof PAGES)[number]['id']
 
@@ -48,12 +50,12 @@ export default function App() {
         </div>
       </header>
 
-      {page === 'crafting' ? (
-        <Suspense fallback={<p className="hint">Loading crafting recipes…</p>}>
-          <CraftingPage server={server} />
-        </Suspense>
-      ) : (
+      {page === 'refining' ? (
         <RefiningPage server={server} />
+      ) : (
+        <Suspense fallback={<p className="hint">Loading…</p>}>
+          {page === 'crafting' ? <CraftingPage server={server} /> : <FlipsPage server={server} />}
+        </Suspense>
       )}
     </div>
   )
