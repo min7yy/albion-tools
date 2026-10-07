@@ -27,8 +27,11 @@ async function getPage(base: string, offset: number): Promise<KillEvent[] | null
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(30_000) })
       if (res.ok) return (await res.json()) as KillEvent[]
-      // 4xx means we've gone past what the API will page through.
-      if (res.status < 500) return null
+      // 4xx past the first page means we've gone past what the API will page through.
+      if (res.status < 500) {
+        if (offset === 0) throw new Error(`${url}: ${res.status}`)
+        return null
+      }
       console.warn(`${url}: ${res.status}`)
     } catch (e) {
       console.warn(`${url}: ${e instanceof Error ? e.message : e}`)
@@ -47,7 +50,18 @@ async function readState(path: string): Promise<MetaState> {
   }
 }
 
-async function collect(server: string, base: string, folder: string): Promise<void> {
+/** One server's result from this run, written to status.json so a stalled server is easy to spot. */
+interface RunStatus {
+  at: string
+  added: number
+  /** Id and time of the newest event the API returned, to tell a stale API from a quiet one. */
+  newestEventId?: number
+  newestTime?: string
+  pages: number
+  error?: string
+}
+
+async function collect(server: string, base: string, folder: string, status: RunStatus): Promise<void> {
   const statePath = join(folder, `${server}-state.json`)
   const state = await readState(statePath)
   const lastSeen = state.lastEventId
@@ -56,7 +70,12 @@ async function collect(server: string, base: string, folder: string): Promise<vo
   let added = 0
   for (let offset = 0; offset <= MAX_OFFSET; offset += PAGE) {
     const events = await getPage(base, offset)
+    status.pages++
     if (!events?.length) break
+    if (offset === 0) {
+      status.newestEventId = events[0].EventId
+      status.newestTime = events[0].TimeStamp
+    }
     const fresh = events.filter((e) => !seen.has(e.EventId))
     for (const e of fresh) seen.add(e.EventId)
     added += addEvents(state, fresh, lastSeen)
@@ -68,6 +87,7 @@ async function collect(server: string, base: string, folder: string): Promise<vo
   pruneState(state, now)
   await writeFile(statePath, JSON.stringify(state))
   await writeFile(join(folder, `${server}.json`), JSON.stringify(summarize(state, server, now)))
+  status.added = added
   console.log(`${server}: ${added} new events`)
 }
 
@@ -75,13 +95,17 @@ const folder = process.argv[2]
 if (!folder) throw new Error('Usage: collect-meta.ts <folder>')
 await mkdir(folder, { recursive: true })
 let failures = 0
+const statuses: Record<string, RunStatus> = {}
 for (const [server, base] of Object.entries(SERVERS)) {
+  const status: RunStatus = (statuses[server] = { at: new Date().toISOString(), added: 0, pages: 0 })
   try {
-    await collect(server, base, folder)
+    await collect(server, base, folder, status)
   } catch (e) {
     // One server being down shouldn't lose the others' data.
     failures++
-    console.error(`${server}: ${e instanceof Error ? e.message : e}`)
+    status.error = e instanceof Error ? e.message : String(e)
+    console.error(`${server}: ${status.error}`)
   }
 }
+await writeFile(join(folder, 'status.json'), JSON.stringify(statuses, null, 1))
 if (failures === Object.keys(SERVERS).length) process.exit(1)
