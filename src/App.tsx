@@ -1,13 +1,15 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { SERVERS } from './api/servers'
 import { useServer } from './useServer'
 import { useHashRoute } from './useHashRoute'
 import RefiningPage from './pages/RefiningPage'
+import { lazyPage } from './lazyPage'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 // Crafting and flips carry ~6,500 recipes, so they load only when opened.
-const CraftingPage = lazy(() => import('./pages/CraftingPage'))
-const FlipsPage = lazy(() => import('./pages/FlipsPage'))
-const BuildGuidePage = lazy(() => import('./pages/BuildGuidePage'))
+const CraftingPage = lazyPage(() => import('./pages/CraftingPage'))
+const FlipsPage = lazyPage(() => import('./pages/FlipsPage'))
+const BuildGuidePage = lazyPage(() => import('./pages/BuildGuidePage'))
 
 const PAGES = [
   { id: 'refining', label: 'Refining' },
@@ -66,19 +68,21 @@ export default function App() {
         </div>
       </header>
 
-      {page === 'refining' ? (
-        <RefiningPage server={server} />
-      ) : (
-        <Suspense fallback={<p className="hint">Loading…</p>}>
-          {page === 'crafting' ? (
-            <CraftingPage server={server} />
-          ) : page === 'flips' ? (
-            <FlipsPage server={server} />
-          ) : (
-            <BuildGuidePage server={server} />
-          )}
-        </Suspense>
-      )}
+      <ErrorBoundary resetKey={page}>
+        {page === 'refining' ? (
+          <RefiningPage server={server} />
+        ) : (
+          <Suspense fallback={<p className="hint">Loading…</p>}>
+            {page === 'crafting' ? (
+              <CraftingPage server={server} />
+            ) : page === 'flips' ? (
+              <FlipsPage server={server} />
+            ) : (
+              <BuildGuidePage server={server} />
+            )}
+          </Suspense>
+        )}
+      </ErrorBoundary>
     </div>
   )
 }
