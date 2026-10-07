@@ -8,7 +8,8 @@ import { SLIDER_STEPS, budgetToSlider, sliderToBudget } from '../buildguide/slid
 import { FIGHT_FILTERS, SORT_MODES, rankWithMeta, weaponMeta, type FightFilter, type SortMode } from '../buildguide/meta'
 import { useMeta } from '../useMeta'
 import { GEAR, SLOT_LABELS, gearItemIds, type Gear } from '../buildguide/gear'
-import { bestSet, cheapestSet, dearestSet, setPieces, usualGear, type SetChoice } from '../buildguide/sets'
+import { bestSetAnyCity, cheapestSet, dearestSet, planSets, usualGear, type SetChoice } from '../buildguide/sets'
+import { specBonus } from '../buildguide/power'
 import { ItemIcon } from '../components/ItemIcon'
 import { usePrices } from '../usePrices'
 import { useStoredState, withDefaults } from '../useStoredState'
@@ -24,6 +25,8 @@ interface BuildGuideSettings {
   sort: SortMode
   /** Spend the budget on the weapon alone or on a full set built around it. */
   mode: 'weapon' | 'set'
+  /** Item power from weapon spec; higher tiers multiply it (the mastery modifier). */
+  specItemPower: number
 }
 
 const DEFAULTS: BuildGuideSettings = {
@@ -34,13 +37,15 @@ const DEFAULTS: BuildGuideSettings = {
   maxAgeHours: 48,
   fight: 'all',
   sort: 'recommended',
-  mode: 'weapon',
+  mode: 'set',
+  specItemPower: 100,
 }
 const AGE_OPTIONS = [6, 24, 48, 168]
 
 interface Row {
   weapon: Weapon
   itemPower: number
+  strength?: number
   price: number
   /** The weapon version bought. */
   best: WeaponOption
@@ -49,6 +54,8 @@ interface Row {
   /** Set mode: the version bought for each slot. */
   set?: SetChoice
 }
+
+const formatStrength = (s: number) => `${s >= 1 ? '+' : '−'}${Math.round(Math.abs(s - 1) * 100)}%`
 
 function Version({ o }: { o: WeaponOption }) {
   return (
@@ -63,7 +70,8 @@ function Version({ o }: { o: WeaponOption }) {
 
 export default function BuildGuidePage({ server }: { server: ServerId }) {
   const [settings, setSettings] = useStoredState<BuildGuideSettings>(
-    'albion-tools.buildguide.settings',
+    // v2: full sets became the default, so older saved settings start fresh.
+    'albion-tools.buildguide.settings.v2',
     DEFAULTS,
     withDefaults(DEFAULTS),
   )
@@ -105,29 +113,40 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
     [settings.cities, settings.maxAgeHours, fetchedAt],
   )
   const lookup = useMemo(() => indexQualityPrices(prices), [prices])
-  const values = useMemo(() => evaluateWeapons(weapons, lookup, offerSettings), [weapons, lookup, offerSettings])
-  const sets = useMemo(
-    () =>
-      setMode
-        ? values.map((v) => ({ weapon: v.weapon, pieces: setPieces(v.weapon, gearFor.get(v.weapon.base) ?? [], lookup, offerSettings) }))
-        : [],
-    [setMode, values, gearFor, lookup, offerSettings],
+  const spec = settings.specItemPower
+  const values = useMemo(
+    () => evaluateWeapons(weapons, lookup, offerSettings, (tier) => specBonus(tier, spec)),
+    [weapons, lookup, offerSettings, spec],
+  )
+  // Each set is priced one city at a time: every piece comes from the same market.
+  const plans = useMemo(
+    () => (setMode ? values.map((v) => planSets(v.weapon, gearFor.get(v.weapon.base) ?? [], lookup, offerSettings, spec)) : []),
+    [setMode, values, gearFor, lookup, offerSettings, spec],
   )
 
   const range = useMemo(() => {
     if (!setMode) return budgetRange(values)
-    if (!sets.length) return null
-    return {
-      min: Math.min(...sets.map((s) => cheapestSet(s.pieces))),
-      max: Math.max(...sets.map((s) => dearestSet(s.pieces))),
-    }
-  }, [setMode, values, sets])
+    const mins = plans.map(cheapestSet).filter((p) => p !== null)
+    const maxes = plans.map(dearestSet).filter((p) => p !== null)
+    return mins.length ? { min: Math.min(...mins), max: Math.max(...maxes) } : null
+  }, [setMode, values, plans])
 
   const rows = useMemo(() => {
     const list: Row[] = setMode
-      ? sets.flatMap(({ weapon, pieces }) => {
-          const choice = bestSet(weapon, pieces, settings.budget)
-          return choice ? [{ weapon, itemPower: choice.itemPower, price: choice.price, best: choice.picks[0].option, set: choice }] : []
+      ? plans.flatMap((cityPlans) => {
+          const choice = bestSetAnyCity(cityPlans, settings.budget)
+          return choice
+            ? [
+                {
+                  weapon: cityPlans[0].weapon,
+                  itemPower: choice.itemPower,
+                  strength: choice.strength,
+                  price: choice.price,
+                  best: choice.picks[0].option,
+                  set: choice,
+                },
+              ]
+            : []
         })
       : rankForBudget(values, settings.budget).map((r) => ({
           weapon: r.weapon,
@@ -137,7 +156,7 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
           frontier: r.frontier,
         }))
     return rankWithMeta(list, meta, settings.sort)
-  }, [setMode, sets, values, settings.budget, meta, settings.sort])
+  }, [setMode, plans, values, settings.budget, meta, settings.sort])
   const detail = rows.find((r) => r.weapon.base === selected)
 
   const toggleCity = (city: string) =>
@@ -184,7 +203,26 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
         </fieldset>
 
         <fieldset className="panel">
-          <legend>Buy in</legend>
+          <legend>Your spec</legend>
+          <label>
+            Weapon spec item power
+            <input
+              type="number"
+              min={0}
+              max={400}
+              step={10}
+              value={settings.specItemPower}
+              onChange={(e) => set({ specItemPower: Math.max(0, Number(e.target.value) || 0) })}
+            />
+          </label>
+          <p className="hint">
+            The item power your weapon spec adds (shown in game on the weapon's tooltip). Higher tiers add 5% of it per tier
+            above T4, so with spec a T8.0 beats a T4.4.
+          </p>
+        </fieldset>
+
+        <fieldset className="panel">
+          <legend>{settings.mode === 'set' ? 'Cities to compare' : 'Buy in'}</legend>
           {MARKET_CITIES.map((city) => (
             <label key={city} className="check">
               <input type="checkbox" checked={settings.cities.includes(city)} onChange={() => toggleCity(city)} />
@@ -279,11 +317,16 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                     <th>#</th>
                     <th>Weapon</th>
                     <th>Version</th>
+                    {setMode && (
+                      <th className="num" title="How much stronger than the same set at T4.0, weighing each slot by what its item power does">
+                        Strength
+                      </th>
+                    )}
                     <th className="num">{setMode ? 'Average IP' : 'Item power'}</th>
                     <th className="num" title="Share of all weapons seen in recent kills for this fight size">Popularity</th>
                     <th className="num" title="Kills as a share of kills plus deaths">Kill share</th>
                     <th className="num">{setMode ? 'Set price' : 'Price'}</th>
-                    {!setMode && <th>City</th>}
+                    <th>{setMode ? 'Buy all in' : 'City'}</th>
                     {!setMode && <th className="num">Price age</th>}
                   </tr>
                 </thead>
@@ -305,7 +348,8 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                       <td>
                         <Version o={r.best} />
                       </td>
-                      <td className="num strong">{r.itemPower}</td>
+                      {setMode && <td className="num strong">{formatStrength(r.strength ?? 1)}</td>}
+                      <td className={setMode ? 'num' : 'num strong'}>{r.itemPower}</td>
                       <td className="num">{r.meta ? formatPercent(r.meta.popularity) : <span className="muted">–</span>}</td>
                       <td className="num muted">{r.meta ? formatPercent(r.meta.killRatio, 0) : '–'}</td>
                       <td className="num">
@@ -316,7 +360,7 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                           </span>
                         ) : null}
                       </td>
-                      {!setMode && <td>{r.best.city}</td>}
+                      <td>{r.set?.city ?? r.best.city}</td>
                       {!setMode && <td className="num muted">{formatAge(r.best.date)}</td>}
                     </tr>
                   ))}
@@ -336,7 +380,8 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
               {detail.set ? (
                 <>
                   <p className="hint">
-                    {formatSilver(detail.price)} silver for {detail.itemPower} average item power, using the gear most often
+                    Buy everything in {detail.set.city}: {formatSilver(detail.price)} silver for {detail.itemPower} average item
+                    power, {formatStrength(detail.set.strength)} stronger than the same set at T4.0. Uses the gear most often
                     seen with this weapon.
                   </p>
                   <table className="breakdown set">
@@ -351,10 +396,10 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                             </span>
                           </td>
                           <td>
+                            <span className="slot">{option.itemPower} IP</span>
                             <Version o={option} />
                           </td>
                           <td className="num">{formatSilver(option.price)}</td>
-                          <td className="city">{option.city}</td>
                         </tr>
                       ))}
                       {detail.set.missing.map((slot) => (
@@ -363,7 +408,6 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                             <span className="slot">{SLOT_LABELS[slot]}</span>
                             No recent price
                           </td>
-                          <td />
                           <td />
                           <td />
                         </tr>
@@ -397,10 +441,12 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
           Each weapon shows the most item power your budget buys, at any quality, from the cheapest recent sell order in
           the cities you picked. Popularity and kill share come from a sample of recent kills
           {summary ? ` (${summary.events.toLocaleString()} kills since ${summary.from}, updated ${formatAge(new Date(summary.updatedAt))})` : ''}
-          . Recommended weighs item power and popularity equally. Group kills credit every attacker, so compare kill share
-          within one fight size. Full sets spend the budget across weapon, off-hand, helmet, armour, shoes and cape, picking
-          the upgrade that adds the most average item power per silver each time; a two-handed weapon counts twice, as in
-          game. Mastery and spec bonuses aren't included.
+          . Recommended weighs strength and popularity equally. Group kills credit every attacker, so compare kill share
+          within one fight size. Full sets are bought in one city: each city is priced separately and the strongest set the
+          budget buys there wins. Strength uses the game's own scaling per 100 item power: weapon damage +9.2% (two-handed)
+          or +8.3% (one-handed), hit points +6% (armour 50%, helmet and shoes 25% each) and resistances +3% (armour only),
+          so the weapon and armour get most of the budget and the cape the least. Armour spells are assumed to be about 15%
+          of your output.
         </p>
       </main>
     </div>

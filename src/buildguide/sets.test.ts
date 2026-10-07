@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { MetaSummary } from '../meta/aggregate'
-import { bestSet, cheapestSet, dearestSet, usualGear, type SetPiece } from './sets'
+import { bestSet, bestSetAnyCity, cheapestSet, dearestSet, planSet, planSets, usualGear, type SetPiece } from './sets'
+import { indexQualityPrices } from './value'
+import type { Price } from '../api/prices'
 import type { WeaponOption } from './value'
 import type { Weapon } from './weapons'
 
@@ -42,36 +44,88 @@ describe('usualGear', () => {
   })
 })
 
-describe('bestSet', () => {
+describe('planSet and bestSet', () => {
   const pieces = [
-    piece('MainHand', opt(700, 1000), opt(800, 2000), opt(1100, 20_000)),
-    piece('Head', opt(700, 500), opt(900, 1500)),
-    piece('Armor', opt(700, 500), opt(800, 4000)),
+    piece('MainHand', opt(800, 1000), opt(900, 2000), opt(1200, 20_000)),
+    piece('Head', opt(800, 500), opt(1000, 1500)),
+    piece('Armor', opt(800, 500), opt(900, 4000)),
     piece('Cape'),
   ]
+  const plan = planSet(sword, 'Martlock', pieces)
 
   it('returns nothing when even the cheapest set is over budget', () => {
-    expect(bestSet(sword, pieces, 1999)).toBeNull()
+    expect(bestSet(plan, 1999)).toBeNull()
   })
 
-  it('spends on the upgrades that add the most item power per silver', () => {
-    // Start 2,000. Head +200 IP for 1,000 beats weapon +100 for 1,000 and armour +100 for 3,500.
-    const set = bestSet(sword, pieces, 3000)
-    expect(set?.picks.map((p) => p.option.itemPower)).toEqual([700, 900, 700])
-    expect(set).toMatchObject({ price: 3000, itemPower: 767, missing: ['Cape'] })
-    const more = bestSet(sword, pieces, 4000)
-    expect(more?.picks.map((p) => p.option.itemPower)).toEqual([800, 900, 700])
+  it('finds the strongest combination for the budget', () => {
+    // 3,000 buys one upgrade: weapon +100 IP (+8.3% damage) beats helmet +200 IP (~+4.0%).
+    const set = bestSet(plan, 3000)
+    expect(set?.picks.map((p) => p.option.itemPower)).toEqual([900, 800, 800])
+    expect(set).toMatchObject({ city: 'Martlock', price: 3000, itemPower: 833, missing: ['Cape'] })
+    expect(set!.strength).toBeCloseTo(1.0825, 3)
+    // 4,000 buys both.
+    expect(bestSet(plan, 4000)?.picks.map((p) => p.option.itemPower)).toEqual([900, 1000, 800])
   })
 
-  it('counts a two-handed weapon twice', () => {
-    const set = bestSet(claymore, pieces.slice(0, 3), 4000)
-    // Weapon upgrade is worth 2 × 100 IP for 1,000, the same rate as the helmet, so both fit.
-    expect(set?.picks.map((p) => p.option.itemPower)).toEqual([800, 900, 700])
-    expect(set?.itemPower).toBe(Math.round((800 * 2 + 900 + 700) / 4))
+  it('keeps only sets that are stronger than every cheaper one', () => {
+    for (let i = 1; i < plan.front.length; i++) {
+      expect(plan.front[i].price).toBeGreaterThan(plan.front[i - 1].price)
+      expect(plan.front[i].log).toBeGreaterThan(plan.front[i - 1].log)
+    }
+  })
+
+  it('counts a two-handed weapon by its own damage scaling', () => {
+    const set = bestSet(planSet(claymore, 'Martlock', pieces.slice(0, 3)), 3000)
+    expect(set!.strength).toBeCloseTo(1.0918, 3)
+    expect(set?.itemPower).toBe(Math.round((900 * 2 + 800 + 800) / 4))
   })
 
   it('gives the slider range', () => {
-    expect(cheapestSet(pieces)).toBe(2000)
-    expect(dearestSet(pieces)).toBe(25_500)
+    expect(cheapestSet([plan])).toBe(2000)
+    expect(dearestSet([plan])).toBe(25_500)
+    expect(cheapestSet([planSet(sword, 'Lymhurst', [piece('MainHand')])])).toBeNull()
+  })
+})
+
+describe('planSets', () => {
+  const weapon: Weapon = { ...sword, variants: [[4, 0, 800], [5, 0, 900]] }
+  const helmet = { base: 'HEAD_PLATE_SET1', name: 'Soldier Helmet', slot: 'Head' as const, variants: [[4, 0, 800], [5, 0, 900]] as [number, number, number][] }
+  const date = new Date('2026-10-07T12:00:00Z')
+  const price = (itemId: string, city: string, sellMin: number): Price =>
+    ({ itemId, city, quality: 1, sellMin, sellMinDate: date, buyMax: null, buyMaxDate: null })
+  const lookup = indexQualityPrices([
+    // Martlock has the cheap weapon, Lymhurst the cheap helmet: no single city has both cheap.
+    price('T4_MAIN_SWORD', 'Martlock', 1000),
+    price('T5_MAIN_SWORD', 'Martlock', 2000),
+    price('T4_HEAD_PLATE_SET1', 'Martlock', 5000),
+    price('T4_MAIN_SWORD', 'Lymhurst', 4000),
+    price('T4_HEAD_PLATE_SET1', 'Lymhurst', 500),
+    price('T5_HEAD_PLATE_SET1', 'Lymhurst', 600),
+  ])
+  const settings = { cities: ['Martlock', 'Lymhurst'], maxAgeHours: 24, now: date.getTime() }
+
+  it('buys every piece in the same city', () => {
+    const plans = planSets(weapon, [helmet], lookup, settings)
+    // Mixing cities would cost 1,000 + 500; within one city the cheapest set is Lymhurst at 4,500.
+    expect(bestSetAnyCity(plans, 2000)).toBeNull()
+    const set = bestSetAnyCity(plans, 5100)
+    expect(set?.city).toBe('Lymhurst')
+    expect(set?.picks.every((p) => p.option.city === 'Lymhurst')).toBe(true)
+    expect(set?.price).toBe(4600)
+    // With more silver, Martlock's T5 weapon set is stronger.
+    expect(bestSetAnyCity(plans, 7000)).toMatchObject({ city: 'Martlock', price: 7000 })
+  })
+
+  it('prefers a city that sells the whole set over one missing a piece', () => {
+    const plans = planSets(weapon, [helmet], lookup, { ...settings, cities: ['Martlock', 'Lymhurst'] })
+    const onlyWeapon = planSets(weapon, [{ ...helmet, base: 'HEAD_NONE' }], lookup, settings)
+    expect(bestSetAnyCity(onlyWeapon, 10_000)?.missing).toEqual(['Head'])
+    expect(bestSetAnyCity(plans, 10_000)?.missing).toEqual([])
+  })
+
+  it('adds the mastery share of spec to higher-tier weapons', () => {
+    const plans = planSets(weapon, [helmet], lookup, settings, 100)
+    const set = bestSetAnyCity(plans, 7000)
+    expect(set?.picks[0].option.itemPower).toBe(905)
   })
 })
