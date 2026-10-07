@@ -32,3 +32,13 @@ export function formatPerDay(n: number | null | undefined): string {
   if (n === 0) return '0'
   return n < 10 ? n.toFixed(1) : Math.round(n).toLocaleString()
 }
+
+/** Reads typed silver: "600,000", "600k" or "1.2m". Null when it isn't an amount. */
+export function parseSilver(text: string): number | null {
+  const t = text.trim().toLowerCase().replace(/\s/g, '')
+  const short = t.match(/^(\d+(?:[.,]\d+)?)([km])$/)
+  if (short) return Math.round(Number(short[1].replace(',', '.')) * (short[2] === 'k' ? 1e3 : 1e6))
+  // Plain amounts may carry any thousands separator.
+  if (!/^[\d,.'’]*$/.test(t)) return null
+  return Number(t.replace(/\D/g, '')) || 0
+}

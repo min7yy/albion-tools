@@ -5,6 +5,8 @@ import { FLIP_MARKETS } from '../flips/markets'
 
 interface Props {
   filters: FlipFilters
+  /** Main filters sit in the toolbar; the rest fold away under Options. */
+  part: 'main' | 'more'
   onChange: (f: FlipFilters) => void
 }
 
@@ -25,12 +27,12 @@ const SALES_OPTIONS: { label: string; value: number | null }[] = [
 
 const numOrAll = (v: string): number | 'all' => (v === 'all' ? 'all' : Number(v))
 
-export function FlipFiltersBar({ filters, onChange }: Props) {
+export function FlipFiltersBar({ filters, onChange, part }: Props) {
   const set = <K extends keyof FlipFilters>(key: K, value: FlipFilters[K]) => onChange({ ...filters, [key]: value })
   const subs = CATEGORIES.find((c) => c.id === filters.category)?.subs ?? []
 
-  return (
-    <div className="filters">
+  const main = (
+    <>
       <label>
         Items
         <select
@@ -74,17 +76,6 @@ export function FlipFiltersBar({ filters, onChange }: Props) {
         </select>
       </label>
       <label>
-        Enchant
-        <select value={filters.enchantment} onChange={(e) => set('enchantment', numOrAll(e.target.value))}>
-          <option value="all">All</option>
-          {ENCHANTMENTS.map((n) => (
-            <option key={n} value={n}>
-              .{n}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
         Buy in
         <select value={filters.buyMarket} onChange={(e) => set('buyMarket', e.target.value)}>
           <option value="all">Anywhere</option>
@@ -102,6 +93,29 @@ export function FlipFiltersBar({ filters, onChange }: Props) {
           {FLIP_MARKETS.map((m) => (
             <option key={m} value={m}>
               {m}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Sort by
+        <select value={filters.sortBy} onChange={(e) => set('sortBy', e.target.value as FlipSortKey)}>
+          <option value="profit">Profit per item</option>
+          <option value="margin">Margin</option>
+          <option value="volume">Sold per day</option>
+        </select>
+      </label>
+    </>
+  )
+  const more = (
+    <>
+      <label>
+        Enchant
+        <select value={filters.enchantment} onChange={(e) => set('enchantment', numOrAll(e.target.value))}>
+          <option value="all">All</option>
+          {ENCHANTMENTS.map((n) => (
+            <option key={n} value={n}>
+              .{n}
             </option>
           ))}
         </select>
@@ -142,18 +156,11 @@ export function FlipFiltersBar({ filters, onChange }: Props) {
           ))}
         </select>
       </label>
-      <label>
-        Sort by
-        <select value={filters.sortBy} onChange={(e) => set('sortBy', e.target.value as FlipSortKey)}>
-          <option value="profit">Profit per item</option>
-          <option value="margin">Margin</option>
-          <option value="volume">Sold per day</option>
-        </select>
-      </label>
       <label className="check">
         <input type="checkbox" checked={filters.bestRouteOnly} onChange={(e) => set('bestRouteOnly', e.target.checked)} />
         Best route per item only
       </label>
-    </div>
+    </>
   )
+  return <div className="filters">{part === 'main' ? main : more}</div>
 }

@@ -6,6 +6,8 @@ import { QUALITIES, type CraftingFilters, type SellLocation, type SortKey } from
 
 interface Props {
   filters: CraftingFilters
+  /** Main filters sit in the toolbar; the rest fold away under Options. */
+  part: 'main' | 'more'
   onChange: (f: CraftingFilters) => void
 }
 
@@ -19,13 +21,13 @@ const AGE_OPTIONS: { label: string; value: number | null }[] = [
 
 const numOrAll = (v: string): number | 'all' => (v === 'all' ? 'all' : Number(v))
 
-export function CraftingFiltersBar({ filters, onChange }: Props) {
+export function CraftingFiltersBar({ filters, onChange, part }: Props) {
   const set = <K extends keyof CraftingFilters>(key: K, value: CraftingFilters[K]) =>
     onChange({ ...filters, [key]: value })
   const subs = CATEGORIES.find((c) => c.id === filters.category)?.subs ?? []
 
-  return (
-    <div className="filters">
+  const main = (
+    <>
       <label>
         Category
         <select
@@ -77,6 +79,17 @@ export function CraftingFiltersBar({ filters, onChange }: Props) {
         </select>
       </label>
       <label>
+        Sort by
+        <select value={filters.sortBy} onChange={(e) => set('sortBy', e.target.value as SortKey)}>
+          <option value="profit">Profit per craft</option>
+          <option value="margin">Margin</option>
+        </select>
+      </label>
+    </>
+  )
+  const more = (
+    <>
+      <label>
         Craft in
         <select value={filters.city} onChange={(e) => set('city', e.target.value)}>
           <option value="all">All cities</option>
@@ -118,17 +131,7 @@ export function CraftingFiltersBar({ filters, onChange }: Props) {
           ))}
         </select>
       </label>
-      <label>
-        Sort by
-        <select value={filters.sortBy} onChange={(e) => set('sortBy', e.target.value as SortKey)}>
-          <option value="profit">Profit per craft</option>
-          <option value="margin">Margin</option>
-        </select>
-      </label>
-      <label className="check">
-        <input type="checkbox" checked={filters.hideIncomplete} onChange={(e) => set('hideIncomplete', e.target.checked)} />
-        Hide rows with missing prices
-      </label>
-    </div>
+    </>
   )
+  return <div className="filters">{part === 'main' ? main : more}</div>
 }
