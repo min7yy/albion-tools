@@ -15,6 +15,10 @@ export const WINDOW_DAYS = 7
 export const GEAR_PER_DAY = 20
 /** Gear items per weapon and slot in the published summary. */
 export const GEAR_IN_SUMMARY = 5
+/** Whole loadouts kept per weapon each day (most worn first), to bound the file size. */
+export const BUILDS_PER_DAY = 40
+/** Whole loadouts per weapon in the published summary. */
+export const BUILDS_IN_SUMMARY = 12
 
 interface KillItem {
   Type: string
@@ -38,10 +42,15 @@ export type WeaponStats = Partial<Record<FightSize, [number, number]>>
 /** gear[weapon][slot][item] = times seen together. */
 export type GearCounts = Record<string, Partial<Record<GearSlot, Record<string, number>>>>
 
+/** builds[weapon][loadout key] = [wins, losses] per fight size; see loadoutKey. */
+export type BuildCounts = Record<string, Record<string, WeaponStats>>
+
 export interface DayStats {
   events: number
   weapons: Record<string, WeaponStats>
   gear: GearCounts
+  /** Whole loadouts; missing on days recorded before loadouts were tracked. */
+  builds?: BuildCounts
 }
 
 /** Rolling state kept between job runs. */
@@ -76,14 +85,44 @@ function attackers(event: KillEvent): KillPlayer[] {
   return list.filter((p) => p && !seen.has(p.Id) && seen.add(p.Id))
 }
 
+/** The gear around a weapon as one key: off-hand, head, armour, shoes and cape bases joined by '|' (empty where bare). */
+export function loadoutKey(player: KillPlayer): string {
+  return GEAR_SLOTS.map((slot) => {
+    const type = player.Equipment?.[slot]?.Type
+    return type ? itemBase(type) : ''
+  }).join('|')
+}
+
+function addPair(stats: WeaponStats, size: FightSize, outcome: 0 | 1) {
+  const pair = (stats[size] ??= [0, 0])
+  pair[outcome]++
+}
+
+function sumPairs(into: WeaponStats, from: WeaponStats) {
+  for (const size of FIGHT_SIZES) {
+    const add = from[size]
+    if (!add) continue
+    const pair = (into[size] ??= [0, 0])
+    pair[0] += add[0]
+    pair[1] += add[1]
+  }
+}
+
+/** Fights a loadout or weapon appears in, over every fight size. */
+export function totalFights(stats: WeaponStats): number {
+  let n = 0
+  for (const size of FIGHT_SIZES) n += (stats[size]?.[0] ?? 0) + (stats[size]?.[1] ?? 0)
+  return n
+}
+
 function record(day: DayStats, player: KillPlayer, size: FightSize, outcome: 0 | 1) {
   const main = player.Equipment?.MainHand?.Type
   if (!main) return
   const weapon = itemBase(main)
   if (!isWeapon(weapon)) return
-  const stats = (day.weapons[weapon] ??= {})
-  const pair = (stats[size] ??= [0, 0])
-  pair[outcome]++
+  addPair((day.weapons[weapon] ??= {}), size, outcome)
+  const builds = ((day.builds ??= {})[weapon] ??= {})
+  addPair((builds[loadoutKey(player)] ??= {}), size, outcome)
   const gear = (day.gear[weapon] ??= {})
   for (const slot of GEAR_SLOTS) {
     const type = player.Equipment?.[slot]?.Type
@@ -117,6 +156,14 @@ export function addEvents(state: MetaState, events: KillEvent[], since = state.l
   return added
 }
 
+function topBuilds(builds: Record<string, WeaponStats>, n: number): Record<string, WeaponStats> {
+  return Object.fromEntries(
+    Object.entries(builds)
+      .sort((a, b) => totalFights(b[1]) - totalFights(a[1]) || a[0].localeCompare(b[0]))
+      .slice(0, n),
+  )
+}
+
 function topEntries(counts: Record<string, number>, n: number): Record<string, number> {
   return Object.fromEntries(
     Object.entries(counts)
@@ -133,10 +180,14 @@ export function pruneState(state: MetaState, now: Date): void {
       delete state.days[date]
       continue
     }
-    for (const slots of Object.values(state.days[date].gear)) {
+    const day = state.days[date]
+    for (const slots of Object.values(day.gear)) {
       for (const slot of GEAR_SLOTS) {
         if (slots[slot]) slots[slot] = topEntries(slots[slot], GEAR_PER_DAY)
       }
+    }
+    for (const [weapon, builds] of Object.entries(day.builds ?? {})) {
+      day.builds![weapon] = topBuilds(builds, BUILDS_PER_DAY)
     }
   }
 }
@@ -148,26 +199,32 @@ export interface MetaSummary {
   from: string
   to: string
   events: number
-  weapons: Record<string, { stats: WeaponStats; gear: Partial<Record<GearSlot, [string, number][]>> }>
+  weapons: Record<
+    string,
+    {
+      stats: WeaponStats
+      gear: Partial<Record<GearSlot, [string, number][]>>
+      /** Most worn whole loadouts: [off-hand, head, armour, shoes, cape] bases ('' where bare) and their results. */
+      builds?: [string[], WeaponStats][]
+    }
+  >
 }
 
 export function summarize(state: MetaState, server: string, now: Date): MetaSummary {
   const dates = Object.keys(state.days).sort()
   const stats: Record<string, WeaponStats> = {}
   const gear: GearCounts = {}
+  const builds: BuildCounts = {}
   let events = 0
   for (const date of dates) {
     const day = state.days[date]
     events += day.events
     for (const [weapon, s] of Object.entries(day.weapons)) {
-      const total = (stats[weapon] ??= {})
-      for (const size of FIGHT_SIZES) {
-        const add = s[size]
-        if (!add) continue
-        const pair = (total[size] ??= [0, 0])
-        pair[0] += add[0]
-        pair[1] += add[1]
-      }
+      sumPairs((stats[weapon] ??= {}), s)
+    }
+    for (const [weapon, list] of Object.entries(day.builds ?? {})) {
+      const total = (builds[weapon] ??= {})
+      for (const [key, s] of Object.entries(list)) sumPairs((total[key] ??= {}), s)
     }
     for (const [weapon, slots] of Object.entries(day.gear)) {
       const total = (gear[weapon] ??= {})
@@ -186,7 +243,10 @@ export function summarize(state: MetaState, server: string, now: Date): MetaSumm
       const counts = gear[weapon]?.[slot]
       if (counts) top[slot] = Object.entries(topEntries(counts, GEAR_IN_SUMMARY))
     }
-    weapons[weapon] = { stats: stats[weapon], gear: top }
+    const loadouts = Object.entries(topBuilds(builds[weapon] ?? {}, BUILDS_IN_SUMMARY)).map(
+      ([key, s]): [string[], WeaponStats] => [key.split('|'), s],
+    )
+    weapons[weapon] = { stats: stats[weapon], gear: top, ...(loadouts.length ? { builds: loadouts } : {}) }
   }
   return {
     server,

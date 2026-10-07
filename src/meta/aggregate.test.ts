@@ -101,3 +101,25 @@ describe('pruneState and summarize', () => {
     expect(summary.weapons.MAIN_SWORD.gear.Cape?.[0][1]).toBe(2)
   })
 })
+
+describe('loadouts', () => {
+  it('records whole loadouts with wins and losses and sums them into the summary', () => {
+    const state = emptyState()
+    addEvents(state, [kill(10, '2026-10-06T09:00:00Z', [fire], sickle), kill(11, '2026-10-07T09:00:00Z', [sickle], fire)])
+    expect(state.days['2026-10-06'].builds?.MAIN_FIRESTAFF).toEqual({
+      'OFF_HORN_KEEPER|HEAD_LEATHER_SET2|ARMOR_CLOTH_SET2||': { s: [1, 0] },
+    })
+    const summary = summarize(state, 'asia', new Date('2026-10-07T12:00:00Z'))
+    expect(summary.weapons.MAIN_FIRESTAFF.builds).toEqual([
+      [['OFF_HORN_KEEPER', 'HEAD_LEATHER_SET2', 'ARMOR_CLOTH_SET2', '', ''], { s: [1, 1] }],
+    ])
+    expect(summary.weapons['2H_DUALSICKLE_UNDEAD'].builds?.[0][0]).toEqual(['', '', 'ARMOR_CLOTH_SET2', '', ''])
+  })
+
+  it('reads days recorded before loadouts were tracked', () => {
+    const state = emptyState()
+    state.days['2026-10-07'] = { events: 1, weapons: { MAIN_SWORD: { s: [1, 0] } }, gear: {} }
+    pruneState(state, new Date('2026-10-07T12:00:00Z'))
+    expect(summarize(state, 'asia', new Date('2026-10-07T12:00:00Z')).weapons.MAIN_SWORD.builds).toBeUndefined()
+  })
+})
