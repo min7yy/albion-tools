@@ -47,50 +47,43 @@ export function weaponMeta(summary: MetaSummary, fight: FightFilter): Map<string
   return out
 }
 
-export type SortMode = 'recommended' | 'itemPower' | 'popularity'
+export type SortMode = 'recommended' | 'cheapest' | 'popularity'
 
 export const SORT_MODES: { id: SortMode; label: string }[] = [
   { id: 'recommended', label: 'Recommended' },
-  { id: 'itemPower', label: 'Strongest' },
+  { id: 'cheapest', label: 'Cheapest' },
   { id: 'popularity', label: 'Popularity' },
 ]
 
-/** Anything ranked in the Build guide: a weapon on its own or a full set built around it. */
+/** Recommended: mostly how cheaply the target is reached, with popularity breaking near ties. */
+export const PRICE_SHARE = 0.7
+
+/** A set that reaches the target item power, built around a weapon. */
 export interface Rankable {
   weapon: Weapon
-  itemPower: number
   price: number
-  /** Full sets: strength from power.ts, which weighs each slot's item power by what it does. */
-  strength?: number
 }
-
-const power = (r: Rankable) => r.strength ?? r.itemPower
-
-/** Recommended: mostly how strong a build the budget buys, with popularity breaking near ties. */
-export const STRENGTH_SHARE = 0.7
 
 export type MetaRow<T extends Rankable> = T & {
   meta: WeaponMeta | null
-  /** 0–1: 70% how strong a build the budget buys (against the best row), 30% how popular it is (against the most popular). */
+  /** 0–1: 70% how cheap it is (against the cheapest row), 30% how popular (against the most popular). */
   score: number
 }
 
 /** Adds meta data to rows and sorts them. */
 export function rankWithMeta<T extends Rankable>(rows: T[], meta: Map<string, WeaponMeta> | null, sort: SortMode): MetaRow<T>[] {
-  const powers = rows.map(power)
-  const minPower = Math.min(...powers)
-  const maxPower = Math.max(...powers)
+  const minPrice = Math.min(...rows.map((r) => r.price))
   let maxPopularity = 0
   for (const r of rows) maxPopularity = Math.max(maxPopularity, meta?.get(r.weapon.base)?.popularity ?? 0)
 
   const out: MetaRow<T>[] = rows.map((r) => {
     const m = meta?.get(r.weapon.base) ?? null
-    const strong = maxPower > minPower ? (power(r) - minPower) / (maxPower - minPower) : 1
+    const cheap = r.price > 0 ? minPrice / r.price : 1
     const popularity = maxPopularity && m ? m.popularity / maxPopularity : 0
-    return { ...r, meta: m, score: meta ? STRENGTH_SHARE * strong + (1 - STRENGTH_SHARE) * popularity : strong }
+    return { ...r, meta: m, score: meta ? PRICE_SHARE * cheap + (1 - PRICE_SHARE) * popularity : cheap }
   })
-  const byPower = (a: MetaRow<T>, b: MetaRow<T>) => power(b) - power(a) || b.itemPower - a.itemPower || a.price - b.price
-  if (sort === 'itemPower') return out.sort(byPower)
-  if (sort === 'popularity') return out.sort((a, b) => (b.meta?.popularity ?? 0) - (a.meta?.popularity ?? 0) || byPower(a, b))
-  return out.sort((a, b) => b.score - a.score || byPower(a, b))
+  const byPrice = (a: MetaRow<T>, b: MetaRow<T>) => a.price - b.price || a.weapon.name.localeCompare(b.weapon.name)
+  if (sort === 'cheapest') return out.sort(byPrice)
+  if (sort === 'popularity') return out.sort((a, b) => (b.meta?.popularity ?? 0) - (a.meta?.popularity ?? 0) || byPrice(a, b))
+  return out.sort((a, b) => b.score - a.score || byPrice(a, b))
 }
