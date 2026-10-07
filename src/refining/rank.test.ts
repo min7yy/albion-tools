@@ -5,6 +5,7 @@ import { DEFAULT_FILTERS, evaluateAll, rankResults } from './rank'
 import type { Price } from '../api/prices'
 import type { PriceLookup } from './profit'
 import { itemName } from '../api/items'
+import type { SalesLookup } from '../api/history'
 
 const NOW = new Date('2026-10-07T12:00:00Z').getTime()
 
@@ -56,6 +57,27 @@ describe('evaluateAll and rankResults', () => {
     const ranked = rankResults(all, { ...DEFAULT_FILTERS, resource: 'ore', city: 'Martlock' }, NOW)
     expect(ranked).toHaveLength(1)
     expect(ranked[0].refineCity).toBe('Martlock')
+  })
+
+  const sales: SalesLookup = (id, city) =>
+    id === 'T4_METALBAR' && city === 'Martlock' ? { perDay: 300, avgPrice: 200 } : { perDay: 5, avgPrice: 300 }
+
+  it('hides rows selling less than the minimum per day once sales have loaded', () => {
+    const filters = { ...DEFAULT_FILTERS, minDailySales: 50 }
+    expect(rankResults(all, filters, NOW, sales).map((r) => `${r.recipe.output}@${r.refineCity}`)).toEqual([
+      'T4_METALBAR@Martlock',
+    ])
+    // Without sales data the filter is ignored rather than hiding everything.
+    expect(rankResults(all, filters, NOW)).toHaveLength(2)
+  })
+
+  it('sorts by sales per day and by silver per focus', () => {
+    expect(rankResults(all, { ...DEFAULT_FILTERS, sortBy: 'volume' }, NOW, sales)[0].refineCity).toBe('Martlock')
+    const byFocus = rankResults(all, { ...DEFAULT_FILTERS, sortBy: 'focus' }, NOW)
+    expect(byFocus[0].silverPerFocus!).toBeGreaterThanOrEqual(byFocus[1].silverPerFocus!)
+    // A craft that loses money even with focus sinks below profitable ones.
+    const losing = { ...byFocus[0], profitWithFocus: -1, silverPerFocus: 999 }
+    expect(rankResults([losing, byFocus[1]], { ...DEFAULT_FILTERS, sortBy: 'focus' }, NOW)[0]).toBe(byFocus[1])
   })
 })
 

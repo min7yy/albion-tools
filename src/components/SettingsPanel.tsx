@@ -22,6 +22,20 @@ export function SettingsPanel({ settings, onChange, onReset }: Props) {
         Premium (4% tax)
       </label>
       <label>
+        Focus cost reduction
+        <span className="inline">
+          <input
+            type="number"
+            min={0}
+            max={90}
+            step={1}
+            value={settings.focusCostReduction}
+            onChange={(e) => set('focusCostReduction', Math.min(90, Math.max(0, Number(e.target.value) || 0)))}
+          />
+          %
+        </span>
+      </label>
+      <label>
         Station fee per 100 nutrition
         <input
           type="number"

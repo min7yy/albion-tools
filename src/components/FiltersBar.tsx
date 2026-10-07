@@ -15,6 +15,14 @@ const AGE_OPTIONS: { label: string; value: number | null }[] = [
   { label: 'Any age', value: null },
 ]
 
+const SALES_OPTIONS: { label: string; value: number | null }[] = [
+  { label: 'Any', value: null },
+  { label: '10+', value: 10 },
+  { label: '50+', value: 50 },
+  { label: '200+', value: 200 },
+  { label: '1,000+', value: 1000 },
+]
+
 function numOrAll(v: string): number | 'all' {
   return v === 'all' ? 'all' : Number(v)
 }
@@ -83,10 +91,25 @@ export function FiltersBar({ filters, onChange }: Props) {
         </select>
       </label>
       <label>
+        Sold per day
+        <select
+          value={filters.minDailySales ?? 'any'}
+          onChange={(e) => set('minDailySales', e.target.value === 'any' ? null : Number(e.target.value))}
+        >
+          {SALES_OPTIONS.map((o) => (
+            <option key={o.label} value={o.value ?? 'any'}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
         Sort by
         <select value={filters.sortBy} onChange={(e) => set('sortBy', e.target.value as SortKey)}>
           <option value="profit">Profit per item</option>
           <option value="margin">Margin</option>
+          <option value="focus">Silver per focus</option>
+          <option value="volume">Sold per day</option>
         </select>
       </label>
       <label className="check">

@@ -18,3 +18,17 @@ export function formatAge(date: Date | null, now = Date.now()): string {
 export function tierLabel(tier: number, enchantment: number): string {
   return `T${tier}.${enchantment}`
 }
+
+/** Silver per focus point, with one decimal below 10 so small values stay readable. */
+export function formatPerFocus(n: number | null): string {
+  if (n === null) return '–'
+  return Math.abs(n) < 10 ? n.toFixed(1) : Math.round(n).toLocaleString()
+}
+
+/** Items sold per day; undefined means still loading, null means unavailable. */
+export function formatPerDay(n: number | null | undefined): string {
+  if (n === undefined) return '…'
+  if (n === null) return '–'
+  if (n === 0) return '0'
+  return n < 10 ? n.toFixed(1) : Math.round(n).toLocaleString()
+}

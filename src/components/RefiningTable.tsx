@@ -2,16 +2,20 @@ import { RESOURCES } from '../api/items'
 import { REFINING_SPECIALTY } from '../refining/settings'
 import { resultKey } from '../refining/rank'
 import type { RefiningResult } from '../refining/profit'
-import { formatAge, formatPercent, formatSilver, tierLabel } from '../format'
+import type { SalesLookup } from '../api/history'
+import { formatAge, formatPercent, formatPerDay, formatPerFocus, formatSilver, tierLabel } from '../format'
 
 interface Props {
   rows: RefiningResult[]
   selectedKey: string | null
   onSelect: (key: string) => void
   limit: number
+  /** Undefined while sales history is loading or when it failed. */
+  sales?: SalesLookup
+  salesFailed?: boolean
 }
 
-export function RefiningTable({ rows, selectedKey, onSelect, limit }: Props) {
+export function RefiningTable({ rows, selectedKey, onSelect, limit, sales, salesFailed }: Props) {
   if (!rows.length) return <p className="hint">No rows match these filters.</p>
   return (
     <div className="table-wrap">
@@ -25,6 +29,12 @@ export function RefiningTable({ rows, selectedKey, onSelect, limit }: Props) {
             <th className="num">Sells for</th>
             <th className="num">Profit</th>
             <th className="num">Margin</th>
+            <th className="num" title="Extra silver each focus point earns compared with refining without focus">
+              Silver/focus
+            </th>
+            <th className="num" title="Average sold per day in this city over the last 7 days">
+              Sold/day
+            </th>
             <th className="num">Prices</th>
           </tr>
         </thead>
@@ -61,6 +71,8 @@ export function RefiningTable({ rows, selectedKey, onSelect, limit }: Props) {
                   {r.profit === null ? 'missing price' : formatSilver(r.profit)}
                 </td>
                 <td className="num">{formatPercent(r.margin)}</td>
+                <td className="num">{formatPerFocus(r.silverPerFocus)}</td>
+                <td className="num">{formatPerDay(salesFailed ? null : sales && (sales(r.recipe.output, r.refineCity)?.perDay ?? 0))}</td>
                 <td className="num muted">{formatAge(r.oldestPriceDate)}</td>
               </tr>
             )

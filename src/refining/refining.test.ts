@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { allRecipes, allRefiningItemIds, getRecipe } from './recipes'
-import { DEFAULT_SETTINGS, returnRate, stationFee } from './settings'
+import { DEFAULT_SETTINGS, focusCost, returnRate, stationFee } from './settings'
 import { evaluateRefining, type PriceLookup } from './profit'
 import type { Price } from '../api/prices'
 
@@ -134,5 +134,42 @@ describe('evaluateRefining', () => {
     expect(r.sellPrice).toBe(900)
     expect(r.returnRate).toBeCloseTo(0.367, 3)
     expect(r.profit).not.toBeNull()
+  })
+})
+
+describe('focus', () => {
+  it('uses the game focus cost table, where each enchant level costs one tier more', () => {
+    expect(focusCost(2, 0)).toBe(18)
+    expect(focusCost(4, 0)).toBe(54)
+    expect(focusCost(5, 0)).toBe(94)
+    expect(focusCost(4, 1)).toBe(94)
+    expect(focusCost(8, 4)).toBe(4714)
+    expect(focusCost(4, 0, 50)).toBe(27)
+  })
+
+  const recipe = getRecipe('ore', 5)
+  const prices = lookup([
+    price('T5_ORE', 'Thetford', 100, 90),
+    price('T4_METALBAR', 'Thetford', 200, 180),
+    price('T5_METALBAR', 'Thetford', 800, 700),
+  ])
+
+  it('reports the extra silver each focus point earns, whether or not focus is on', () => {
+    const off = evaluateRefining({ recipe, prices, settings: DEFAULT_SETTINGS, refineCity: 'Thetford' })
+    const on = evaluateRefining({ recipe, prices, settings: { ...DEFAULT_SETTINGS, useFocus: true }, refineCity: 'Thetford' })
+    // Return rate goes from 36.7% to 53.9% on 500 silver of inputs, for 94 focus.
+    const expected = (500 * (returnRate('ore', 'Thetford', true) - returnRate('ore', 'Thetford', false))) / 94
+    expect(off.focusCost).toBe(94)
+    expect(off.silverPerFocus).toBeCloseTo(expected)
+    expect(on.silverPerFocus).toBeCloseTo(expected)
+    expect(on.profit! - off.profit!).toBeCloseTo(expected * 94, 1)
+  })
+
+  it('has no silver per focus with a return rate override or a missing price', () => {
+    const settings = { ...DEFAULT_SETTINGS, returnRateOverride: 0.3 }
+    expect(evaluateRefining({ recipe, prices, settings, refineCity: 'Thetford' }).silverPerFocus).toBeNull()
+    expect(
+      evaluateRefining({ recipe, prices: lookup([]), settings: DEFAULT_SETTINGS, refineCity: 'Thetford' }).silverPerFocus,
+    ).toBeNull()
   })
 })
