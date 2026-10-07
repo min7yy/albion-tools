@@ -206,3 +206,4 @@ table.breakdown.ladder td { padding: 5px 0; font-size: 0.8rem; }
 .type-chips { margin: -4px 0 10px; }
 .type-chips button { font-size: 0.8rem; padding: 3px 10px; }
 .tag-avg { font-size: 0.7rem; color: var(--muted); font-style: italic; }
+.show-more { display: block; margin: 12px auto 0; }

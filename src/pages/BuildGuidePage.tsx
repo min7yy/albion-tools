@@ -5,11 +5,12 @@ import { indexQualityPrices, QUALITIES, QUALITY_NAMES, type OfferSettings, type 
 import { WEAPONS, weaponItemIds, type Weapon } from '../buildguide/weapons'
 import { WEAPON_TYPES, weaponTypeLabel } from '../buildguide/types'
 import { ROLES, weaponRole, type Role } from '../buildguide/roles'
-import { FIGHT_FILTERS, SORT_MODES, rankWithMeta, weaponMeta, type FightFilter, type SortMode } from '../buildguide/meta'
+import { FIGHT_FILTERS, type FightFilter } from '../buildguide/meta'
+import { BUILDS_PER_WEAPON, SORT_MODES, loadoutsFor, rankBuilds, type BuildRow, type SortMode } from '../buildguide/loadouts'
 import { useMeta } from '../useMeta'
 import { GEAR, SLOT_LABELS, gearItemIds, type Gear } from '../buildguide/gear'
 import { usualGear } from '../buildguide/sets'
-import { cheapestCity, equivalenceLadder, noSetReason, type SetPiece, type TargetSet } from '../buildguide/target'
+import { cheapestCity, equivalenceLadder, noSetReason, type SetPiece } from '../buildguide/target'
 import { specFromLevels } from '../buildguide/mastery'
 import { ItemIcon } from '../components/ItemIcon'
 import { HowItWorks, MoreOptions } from '../components/MoreOptions'
@@ -52,10 +53,12 @@ const TARGET_MIN = 700
 const TARGET_MAX = 1800
 const TARGET_PRESETS = [900, 1000, 1100, 1200, 1300, 1400]
 
-interface Row {
-  weapon: Weapon
-  price: number
-  set: TargetSet
+/** Cards shown before "Show more": a whole role can have a few hundred builds. */
+const CARDS_SHOWN = 30
+
+/** Identifies a card: the weapon plus its loadout. */
+function buildKey(r: BuildRow): string {
+  return `${r.weapon.base}|${r.loadout ? r.set.picks.map((p) => p.piece.base).join('|') : 'usual'}`
 }
 
 function Version({ o }: { o: Pick<WeaponOption, 'tier' | 'ench' | 'quality'> }) {
@@ -133,14 +136,15 @@ function Ladder({
 
 export default function BuildGuidePage({ server }: { server: ServerId }) {
   const [settings, setSettings] = useStoredState<BuildGuideSettings>(
-    // v5: weapons are picked by role, then optionally by type.
-    'albion-tools.buildguide.settings.v5',
+    // v6: builds are whole loadouts from recent kills, sorted by win rate and play too.
+    'albion-tools.buildguide.settings.v6',
     DEFAULTS,
     withDefaults(DEFAULTS),
   )
   const set = (patch: Partial<BuildGuideSettings>) => setSettings({ ...settings, ...patch })
   const [selected, setSelected] = useState<string | null>(null)
   const [openSlot, setOpenSlot] = useState<string | null>(null)
+  const [cardLimit, setCardLimit] = useState(CARDS_SHOWN)
 
   // Prices are fetched for one role at a time: every version and quality of every item is a lot of rows.
   const roleTypes = useMemo(
@@ -156,9 +160,14 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
     [settings.role, sub, settings.hands],
   )
   const { summary, error: metaError } = useMeta(server)
-  const meta = useMemo(() => (summary ? weaponMeta(summary, settings.fight) : null), [summary, settings.fight])
 
-  // Each weapon is paired with the gear most often seen with it in recent kills.
+  // Each weapon's most worn whole loadouts from recent kills in this fight size.
+  const loadouts = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof loadoutsFor>>()
+    if (summary) for (const w of weapons) map.set(w.base, loadoutsFor(w, summary, settings.fight).slice(0, BUILDS_PER_WEAPON))
+    return map
+  }, [weapons, summary, settings.fight])
+  // Weapons without enough recorded fights fall back to the gear most often seen with them, slot by slot.
   const gearFor = useMemo(() => {
     const map = new Map<string, Gear[][]>()
     if (summary) for (const w of weapons) map.set(w.base, usualGear(w, summary))
@@ -168,8 +177,9 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
     if (!summary) return []
     const gear = new Map<string, Gear>()
     for (const slots of gearFor.values()) for (const g of slots.flat()) gear.set(g.base, g)
+    for (const list of loadouts.values()) for (const l of list) for (const g of l.gear.flat()) gear.set(g.base, g)
     return [...weaponItemIds(weapons), ...gearItemIds([...gear.values()])]
-  }, [summary, weapons, gearFor])
+  }, [summary, weapons, gearFor, loadouts])
   const { prices, loading, error, fetchedAt, reload } = usePrices(server, itemIds, [...MARKET_CITIES], QUALITIES)
   // Fills gaps where a city has no current listing; the page shows listings first and updates when this lands.
   const history = useSaleAverages(server, itemIds, [...MARKET_CITIES], QUALITIES)
@@ -188,15 +198,23 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
   const spec = specFromLevels(settings.mastery, settings.spec)
 
   const [rows, missing] = useMemo(() => {
-    const list: Row[] = []
+    const list: BuildRow[] = []
     const none: Weapon[] = []
     for (const weapon of weapons) {
-      const found = cheapestCity(weapon, gearFor.get(weapon.base) ?? [], lookup, offers, spec, settings.target)
-      if (found) list.push({ weapon, price: found.price, set: found })
+      let priced = 0
+      for (const loadout of loadouts.get(weapon.base) ?? []) {
+        const set = cheapestCity(weapon, loadout.gear, lookup, offers, spec, settings.target)
+        if (!set) continue
+        list.push({ weapon, loadout, set })
+        priced++
+      }
+      if (priced) continue
+      const set = cheapestCity(weapon, gearFor.get(weapon.base) ?? [], lookup, offers, spec, settings.target)
+      if (set) list.push({ weapon, loadout: null, set })
       else none.push(weapon)
     }
-    return [rankWithMeta(list, meta, settings.sort), none] as const
-  }, [weapons, gearFor, lookup, offers, spec, settings.target, meta, settings.sort])
+    return [rankBuilds(list, settings.sort), none] as const
+  }, [weapons, loadouts, gearFor, lookup, offers, spec, settings.target, settings.sort])
   // Only worked out once prices are in, and only for the weapons left out.
   const missingReasons = useMemo(
     () =>
@@ -370,15 +388,16 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
         </p>
       ) : (
         <ol className="build-cards">
-          {rows.map((r, i) => {
-            const open = selected === r.weapon.base
+          {rows.slice(0, cardLimit).map((r, i) => {
+            const key = buildKey(r)
+            const open = selected === key
             return (
-              <li key={r.weapon.base} className={`build-card${open ? ' open' : ''}`}>
+              <li key={key} className={`build-card${open ? ' open' : ''}`}>
                 <button
                   className="build-head"
                   aria-expanded={open}
                   onClick={() => {
-                    setSelected(open ? null : r.weapon.base)
+                    setSelected(open ? null : key)
                     setOpenSlot(null)
                   }}
                 >
@@ -388,7 +407,7 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                     {r.weapon.twoHanded && <span className="tag-2h">2H</span>}
                   </span>
                   <span className="build-price">
-                    <strong>{formatSilver(r.price)}</strong>
+                    <strong>{formatSilver(r.set.price)}</strong>
                     <small>
                       in {r.set.city}
                       {r.set.picks.some((p) => p.option.average) && (
@@ -408,12 +427,25 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                   </span>
                   <span className="build-stats">
                     <span title="Average over six slots as the game counts it, spec included">{r.set.itemPower} IP</span>
-                    {r.meta && (
-                      <span title="Share of all weapons seen in recent kills for this fight size">
-                        {formatPercent(r.meta.popularity)} of kills
+                    {r.loadout ? (
+                      <>
+                        <span title="Recent fights where this exact loadout got a kill or died">
+                          {r.loadout.fights.toLocaleString()} fights
+                        </span>
+                        <span
+                          title={`${r.loadout.wins} kills, ${r.loadout.losses} deaths. Ranked with a little pull toward 50% so small samples don't top the list.`}
+                        >
+                          {formatPercent(r.loadout.wins / r.loadout.fights, 0)} win rate
+                        </span>
+                      </>
+                    ) : (
+                      <span
+                        className="tag-avg"
+                        title="Not enough recent fights with one exact loadout yet, so this uses the gear most often seen with the weapon, slot by slot"
+                      >
+                        usual gear
                       </span>
                     )}
-                    {r.meta && <span title="Kills as a share of kills plus deaths">{formatPercent(r.meta.killRatio, 0)} kill share</span>}
                   </span>
                 </button>
                 {open && (
@@ -477,22 +509,28 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
           })}
         </ol>
       )}
+      {rows.length > cardLimit && (
+        <button className="show-more" onClick={() => setCardLimit(cardLimit + CARDS_SHOWN)}>
+          Show more ({rows.length - cardLimit} left)
+        </button>
+      )}
       {rows.length > 0 && missingReasons.length > 0 && (
         <p className="hint missing-builds">
           Not shown: {missingReasons.map((m) => `${m.weapon.name} (${m.reason})`).join(', ')}.
         </p>
       )}
       <HowItWorks>
-        Weapons are grouped by the role they usually play in group fights (the game files don't tag roles, so this is the
-        usual community split). Each weapon is paired with the helmet, armour, shoes, cape and off-hand most often seen with it in recent kills (or
-        the next most common, then common non-artifact gear, when a city doesn't sell it), and the whole set is bought in one city: the cheapest city
-        whose versions reach your target average item power. The average counts six slots as the game does, with a
-        two-handed weapon filling the off-hand too, and includes your spec. Item power, the tier bonus (+5% of spec per
-        tier above T4, none on capes) and the spec numbers come from the game's own files. T8.0, T7.1, T6.2, T5.3 and T4.4
-        share base item power, and quality adds 20 to 100, so the cheapest way there often mixes tiers. Where a city has no current listing, last week's average sale price there is used and marked avg. Popularity and
-        kill share come from a sample of recent kills
-        {summary ? ` (${summary.events.toLocaleString()} kills since ${summary.from}, updated ${formatAge(new Date(summary.updatedAt))})` : ''}
-        . Recommended is 70% price and 30% popularity.
+        Builds are whole loadouts (weapon, off-hand, helmet, armour, shoes and cape) seen together in recent kills from the
+        official killboard. Every attacker in a kill counts a win for their loadout and the victim a loss, split by fight
+        size; up to {BUILDS_PER_WEAPON} loadouts per weapon with at least 8 fights are shown. The killboard only records
+        fights where someone died, so ganks count as wins: treat win rates as a guide. Weapons without enough fights yet use
+        the gear most often seen with them, slot by slot, marked usual gear. Each set is bought in one city: the cheapest
+        city whose versions reach your target average item power, counting six slots as the game does (a two-handed weapon
+        fills the off-hand too) and your spec (+5% of spec per tier above T4, none on capes, from the game's own files).
+        Where a city has no current listing, last week's average sale price there is used and marked avg. Recommended
+        weighs win rate 40%, how often it's played 30% and price 30%. Weapons are grouped by the role they usually play
+        (the usual community split).
+        {summary ? ` Based on ${summary.events.toLocaleString()} kills since ${summary.from}, updated ${formatAge(new Date(summary.updatedAt))}.` : ''}
       </HowItWorks>
     </main>
   )
