@@ -66,9 +66,12 @@ export interface Rankable {
 
 const power = (r: Rankable) => r.strength ?? r.itemPower
 
+/** Recommended: mostly how strong a build the budget buys, with popularity breaking near ties. */
+export const STRENGTH_SHARE = 0.7
+
 export type MetaRow<T extends Rankable> = T & {
   meta: WeaponMeta | null
-  /** 0–1: half how strong a build the budget buys (against the best row), half how popular it is (against the most popular). */
+  /** 0–1: 70% how strong a build the budget buys (against the best row), 30% how popular it is (against the most popular). */
   score: number
 }
 
@@ -84,7 +87,7 @@ export function rankWithMeta<T extends Rankable>(rows: T[], meta: Map<string, We
     const m = meta?.get(r.weapon.base) ?? null
     const strong = maxPower > minPower ? (power(r) - minPower) / (maxPower - minPower) : 1
     const popularity = maxPopularity && m ? m.popularity / maxPopularity : 0
-    return { ...r, meta: m, score: meta ? (strong + popularity) / 2 : strong }
+    return { ...r, meta: m, score: meta ? STRENGTH_SHARE * strong + (1 - STRENGTH_SHARE) * popularity : strong }
   })
   const byPower = (a: MetaRow<T>, b: MetaRow<T>) => power(b) - power(a) || b.itemPower - a.itemPower || a.price - b.price
   if (sort === 'itemPower') return out.sort(byPower)

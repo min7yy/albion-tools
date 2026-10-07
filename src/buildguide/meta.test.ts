@@ -38,15 +38,12 @@ describe('weaponMeta', () => {
 describe('rankWithMeta', () => {
   const rows = [row('MAIN_SWORD', 1000, 50_000), row('MAIN_AXE', 900, 40_000), row('2H_BOW', 1100, 90_000)]
 
-  it('blends item power and popularity for the recommended order', () => {
+  it('blends item power and popularity 70/30 for the recommended order', () => {
     const ranked = rankWithMeta(rows, weaponMeta(summary, 's'), 'recommended')
-    // Sword: power 0.5, popularity 1 → 0.75. Bow: power 1, unused solo → 0.5. Axe: power 0, popularity 0.5 → 0.25.
-    expect(ranked.map((r) => [r.weapon.base, r.score])).toEqual([
-      ['MAIN_SWORD', 0.75],
-      ['2H_BOW', 0.5],
-      ['MAIN_AXE', 0.25],
-    ])
-    expect(ranked[1].meta).toBeNull()
+    // Bow: power 1, unused solo → 0.7. Sword: power 0.5, popularity 1 → 0.65. Axe: power 0, popularity 0.5 → 0.15.
+    expect(ranked.map((r) => r.weapon.base)).toEqual(['2H_BOW', 'MAIN_SWORD', 'MAIN_AXE'])
+    expect(ranked.map((r) => r.score)).toEqual([0.7, expect.closeTo(0.65), expect.closeTo(0.15)])
+    expect(ranked[0].meta).toBeNull()
   })
 
   it('sorts by item power or popularity', () => {

@@ -446,7 +446,7 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
           Each weapon shows the most item power your budget buys, at any quality, from the cheapest recent sell order in
           the cities you picked. Popularity and kill share come from a sample of recent kills
           {summary ? ` (${summary.events.toLocaleString()} kills since ${summary.from}, updated ${formatAge(new Date(summary.updatedAt))})` : ''}
-          . Recommended weighs strength and popularity equally. Group kills credit every attacker, so compare kill share
+          . Recommended is 70% strength and 30% popularity. Group kills credit every attacker, so compare kill share
           within one fight size. Full sets are bought in one city: each city is priced separately and the strongest set the
           budget buys there wins. Strength uses the game's own scaling per 100 item power: weapon damage +9.2% (two-handed)
           or +8.3% (one-handed), hit points +6% (armour 50%, helmet and shoes 25% each) and resistances +3% (armour only),
