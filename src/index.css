@@ -207,3 +207,6 @@ table.breakdown.ladder td { padding: 5px 0; font-size: 0.8rem; }
 .type-chips button { font-size: 0.8rem; padding: 3px 10px; }
 .tag-avg { font-size: 0.7rem; color: var(--muted); font-style: italic; }
 .show-more { display: block; margin: 12px auto 0; }
+.build-card.unpriced { opacity: 0.6; }
+.build-card.unpriced .build-head { cursor: default; }
+.build-card.unpriced .build-head:hover { background: none; }

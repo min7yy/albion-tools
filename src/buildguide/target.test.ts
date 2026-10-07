@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Price } from '../api/prices'
 import type { Gear } from './gear'
 import { masteryModifier, specFromLevels, specItemPower } from './mastery'
-import { cheapestCity, cheapestForTarget, equivalenceLadder, noSetReason, type SetPiece } from './target'
+import { cheapestCity, cheapestForTarget, equivalenceLadder, noSetReason, pieceFloor, type SetPiece } from './target'
 import { indexQualityPrices, type WeaponOption } from './value'
 import type { Weapon } from './weapons'
 
@@ -105,5 +105,28 @@ describe('cheapestCity and equivalenceLadder', () => {
       [8, 0, { Lymhurst: 8000 }],
       [4, 4, { Martlock: 9000 }],
     ])
+  })
+})
+
+describe('climbing', () => {
+  it('keeps pieces near the target, capes allowing for spec', () => {
+    expect(pieceFloor('Head', 1200, 120, 'even')).toBe(1100)
+    expect(pieceFloor('Cape', 1200, 120, 'even')).toBe(956)
+    expect(pieceFloor('MainHand', 1200, 120, 'weapon')).toBe(1200)
+    expect(pieceFloor('Armor', 1200, 120, 'weapon')).toBe(1050)
+    expect(pieceFloor('Armor', 1200, 120, 'cheapest')).toBe(0)
+  })
+
+  it('skips versions below the floor even when they would be cheaper', () => {
+    const pieces = [
+      piece('MainHand', opt(700, 100), opt(900, 1000)),
+      piece('Head', opt(700, 100), opt(800, 200)),
+      piece('Armor', opt(700, 100), opt(800, 200)),
+      piece('Shoes', opt(700, 100), opt(800, 200)),
+      piece('Cape', opt(700, 100), opt(800, 200)),
+    ]
+    // Cheapest mix keeps the armour low and pushes the weapon; a floor of 800 lifts every piece.
+    expect(cheapestForTarget(claymore, 'Martlock', pieces, 800)!.picks.map((p) => p.option.itemPower)).toEqual([900, 700, 700, 800, 800])
+    expect(cheapestForTarget(claymore, 'Martlock', pieces, 800, () => 800)!.picks.map((p) => p.option.itemPower)).toEqual([900, 800, 800, 800, 800])
   })
 })
