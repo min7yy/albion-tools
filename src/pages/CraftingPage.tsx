@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react'
 import type { ServerId } from '../api/servers'
-import { indexPrices } from '../api/prices'
 import { CRAFT_RECIPES, craftItemName } from '../crafting/data'
 import { BLACK_MARKET, type CraftingSettings } from '../crafting/evaluate'
 import {
   DEFAULT_CRAFTING_FILTERS,
   craftingItemIds,
   craftingKey,
+  QUALITIES,
   evaluateAllCrafting,
+  qualitiesFor,
+  qualityLookup,
   rankCrafting,
   recipesFor,
 } from '../crafting/rank'
@@ -38,21 +40,28 @@ export default function CraftingPage({ server }: { server: ServerId }) {
 
   const recipes = useMemo(() => recipesFor(CRAFT_RECIPES, filters), [filters])
   const itemIds = useMemo(() => craftingItemIds(recipes), [recipes])
-  const { prices, loading, error, fetchedAt, reload } = usePrices(server, itemIds, CRAFTING_MARKETS)
+  const qualities = useMemo(() => qualitiesFor(filters.quality), [filters.quality])
+  const { prices, loading, error, fetchedAt, reload } = usePrices(server, itemIds, CRAFTING_MARKETS, qualities)
 
   const results = useMemo(() => {
-    const index = indexPrices(prices)
-    return evaluateAllCrafting(recipes, CRAFTING_CITIES, filters.sellAt, (id, city) => index.get(`${id}|${city}`), settings)
-  }, [recipes, prices, settings, filters.sellAt])
+    const lookup = qualityLookup(prices, new Set(recipes.map((r) => r.id)), filters.quality)
+    return evaluateAllCrafting(recipes, CRAFTING_CITIES, filters.sellAt, lookup, settings)
+  }, [recipes, prices, settings, filters.sellAt, filters.quality])
   const rows = useMemo(() => rankCrafting(results, filters), [results, filters])
   const selected = selectedKey ? rows.find((r) => craftingKey(r) === selectedKey) : undefined
 
+  const qualityLabel = QUALITIES.find((q) => q.value === filters.quality)?.label ?? 'Normal'
   const rateNote =
     settings.returnRateOverride !== null ? ' (your override)' : settings.useFocus ? ' with focus' : ''
 
   return (
     <div className="layout">
-      <SettingsPanel settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} />
+      <SettingsPanel
+        settings={settings}
+        onChange={setSettings}
+        onReset={() => setSettings(DEFAULT_SETTINGS)}
+        showFocusCost={false}
+      />
 
       <main className="panel">
         <div className="toolbar">
@@ -92,7 +101,7 @@ export default function CraftingPage({ server }: { server: ServerId }) {
             <ProfitBreakdown
               result={selected}
               title={nameOf(selected.recipe.id)}
-              subtitle={`Buy materials and craft in ${selected.craftCity}. Return rate ${(selected.returnRate * 100).toFixed(1)}%${rateNote}. Focus cost ${selected.recipe.focus.toLocaleString()}.`}
+              subtitle={`Buy materials and craft in ${selected.craftCity}. Return rate ${(selected.returnRate * 100).toFixed(1)}%${rateNote}. Focus cost ${selected.recipe.focus.toLocaleString()}. Sold at ${qualityLabel} quality.`}
               buyMode={settings.buyMode}
               sellMode={selected.sellCity === BLACK_MARKET ? 'instant' : settings.sellMode}
               nameOf={nameOf}
@@ -101,7 +110,7 @@ export default function CraftingPage({ server }: { server: ServerId }) {
           )}
         </div>
         <p className="hint footer">
-          Prices are for normal quality. Crafted gear can come out at a higher quality and sell for more. Return rates
+          Crafted items are priced at the sell quality you pick ({qualityLabel}); materials are always Normal. Return rates
           use the 18% city bonus; city crafting specialties aren't included yet, so use the return rate override if
           you craft in a bonus city. Selling to the Black Market is always an instant sell.
         </p>

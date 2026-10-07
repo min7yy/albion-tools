@@ -1,4 +1,5 @@
 import type { PriceLookup } from '../profit'
+import type { Price } from '../api/prices'
 import type { CraftRecipe } from './data'
 import { BLACK_MARKET, evaluateCrafting, type CraftingResult, type CraftingSettings } from './evaluate'
 
@@ -13,6 +14,8 @@ export interface CraftingFilters {
   enchantment: number | 'all'
   city: string | 'all'
   sellAt: SellLocation
+  /** Quality the crafted item is priced at when sold (1 Normal … 5 Masterpiece). */
+  quality: number
   hideIncomplete: boolean
   maxAgeHours: number | null
   sortBy: SortKey
@@ -25,6 +28,7 @@ export const DEFAULT_CRAFTING_FILTERS: CraftingFilters = {
   enchantment: 'all',
   city: 'all',
   sellAt: 'same',
+  quality: 1,
   hideIncomplete: true,
   maxAgeHours: 24,
   sortBy: 'profit',
@@ -43,6 +47,28 @@ export function craftingItemIds(recipes: CraftRecipe[]): string[] {
     for (const [id] of r.resources) ids.add(id)
   }
   return [...ids]
+}
+
+export const QUALITIES = [
+  { value: 1, label: 'Normal' },
+  { value: 2, label: 'Good' },
+  { value: 3, label: 'Outstanding' },
+  { value: 4, label: 'Excellent' },
+  { value: 5, label: 'Masterpiece' },
+] as const
+
+/** Price qualities to fetch: Normal for materials, plus the chosen sell quality. */
+export function qualitiesFor(quality: number): number[] {
+  return quality === 1 ? [1] : [1, quality]
+}
+
+/**
+ * Price lookup where crafted outputs use the chosen quality and everything else
+ * (resources, artifacts, hearts) uses Normal, the only quality they come in.
+ */
+export function qualityLookup(prices: Price[], outputs: ReadonlySet<string>, quality: number): PriceLookup {
+  const index = new Map(prices.map((p) => [`${p.itemId}|${p.city}|${p.quality}`, p]))
+  return (id, city) => index.get(`${id}|${city}|${outputs.has(id) ? quality : 1}`)
 }
 
 export function evaluateAllCrafting(

@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { CATEGORIES, CRAFT_RECIPES, INGREDIENT_NAMES } from './data'
 import { BLACK_MARKET, craftingReturnRate, evaluateCrafting } from './evaluate'
-import { DEFAULT_CRAFTING_FILTERS, craftingItemIds, evaluateAllCrafting, rankCrafting, recipesFor } from './rank'
+import {
+  DEFAULT_CRAFTING_FILTERS,
+  craftingItemIds,
+  evaluateAllCrafting,
+  qualitiesFor,
+  qualityLookup,
+  rankCrafting,
+  recipesFor,
+} from './rank'
 import { DEFAULT_SETTINGS } from '../refining/settings'
 import type { Price } from '../api/prices'
 import type { PriceLookup } from '../profit'
@@ -105,5 +113,30 @@ describe('rankCrafting', () => {
     const ranked = rankCrafting(all, DEFAULT_CRAFTING_FILTERS, NOW)
     expect(ranked.map((r) => r.craftCity)).toEqual(['Lymhurst', 'Martlock'])
     expect(craftingItemIds(recipes)).toEqual(['T4_MAIN_SWORD', 'T4_METALBAR', 'T4_LEATHER'])
+  })
+})
+
+describe('sell quality', () => {
+  const at = (itemId: string, quality: number, sellMin: number): Price => ({
+    itemId,
+    city: 'Martlock',
+    quality,
+    sellMin,
+    sellMinDate: new Date('2026-10-07T10:00:00Z'),
+    buyMax: null,
+    buyMaxDate: null,
+  })
+  const prices = [at('T4_MAIN_SWORD', 1, 1000), at('T4_MAIN_SWORD', 3, 1600), at('T4_METALBAR', 1, 100)]
+
+  it('fetches Normal plus the chosen quality', () => {
+    expect(qualitiesFor(1)).toEqual([1])
+    expect(qualitiesFor(3)).toEqual([1, 3])
+  })
+
+  it('prices crafted outputs at the chosen quality and materials at Normal', () => {
+    const lookup = qualityLookup(prices, new Set(['T4_MAIN_SWORD']), 3)
+    expect(lookup('T4_MAIN_SWORD', 'Martlock')?.sellMin).toBe(1600)
+    expect(lookup('T4_METALBAR', 'Martlock')?.sellMin).toBe(100)
+    expect(qualityLookup(prices, new Set(['T4_MAIN_SWORD']), 1)('T4_MAIN_SWORD', 'Martlock')?.sellMin).toBe(1000)
   })
 })
