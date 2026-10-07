@@ -54,13 +54,16 @@ export function weaponOptions(
   weapon: Pick<Weapon, 'base' | 'variants'>,
   prices: QualityPriceLookup,
   settings: OfferSettings,
+  /** Extra item power by tier, e.g. the mastery modifier's share of spec. */
+  tierBonus: (tier: number) => number = () => 0,
 ): WeaponOption[] {
   const options: WeaponOption[] = []
   for (const [tier, ench, basePower] of weapon.variants) {
     const itemId = weaponItemId(weapon.base, tier, ench)
     for (const quality of QUALITIES) {
       const offer = cheapestOffer(itemId, quality, prices, settings)
-      if (offer) options.push({ ...offer, itemId, tier, ench, quality, itemPower: basePower + QUALITY_ITEM_POWER[quality] })
+      const itemPower = basePower + QUALITY_ITEM_POWER[quality] + tierBonus(tier)
+      if (offer) options.push({ ...offer, itemId, tier, ench, quality, itemPower })
     }
   }
   return options
@@ -95,9 +98,14 @@ export interface WeaponValue {
 }
 
 /** Value frontier for each weapon; weapons with no fresh prices are left out. */
-export function evaluateWeapons(weapons: Weapon[], prices: QualityPriceLookup, settings: OfferSettings): WeaponValue[] {
+export function evaluateWeapons(
+  weapons: Weapon[],
+  prices: QualityPriceLookup,
+  settings: OfferSettings,
+  tierBonus?: (tier: number) => number,
+): WeaponValue[] {
   return weapons
-    .map((weapon) => ({ weapon, frontier: valueFrontier(weaponOptions(weapon, prices, settings)) }))
+    .map((weapon) => ({ weapon, frontier: valueFrontier(weaponOptions(weapon, prices, settings, tierBonus)) }))
     .filter((v) => v.frontier.length > 0)
 }
 

@@ -1,21 +1,26 @@
 import { GEAR_SLOTS, type GearSlot, type MetaSummary } from '../meta/aggregate'
 import { GEAR, type Gear } from './gear'
+import { BASELINE_ITEM_POWER, slotWeight, specBonus, type SetSlot } from './power'
 import { valueFrontier, weaponOptions, type OfferSettings, type QualityPriceLookup, type WeaponOption } from './value'
 import type { Weapon } from './weapons'
 
 export interface SetPiece {
-  slot: GearSlot | 'MainHand'
+  slot: SetSlot
   base: string
   name: string
   frontier: WeaponOption[]
 }
 
 export interface SetChoice {
+  /** Every piece is bought here: nobody wants to visit five cities for one set. */
+  city: string
   picks: { piece: SetPiece; option: WeaponOption }[]
   price: number
   /** Average over the six slots; a two-handed weapon fills the off-hand slot too. */
   itemPower: number
-  /** Slots left empty because the usual item had no recent price. */
+  /** How much stronger than the same set at T4.0 normal quality (see power.ts). */
+  strength: number
+  /** Slots left empty because the usual item had no recent price in this city. */
   missing: GearSlot[]
 }
 
@@ -33,15 +38,96 @@ export function usualGear(weapon: Weapon, summary: MetaSummary): Gear[] {
   return out
 }
 
-/** Version frontiers for a weapon and its usual gear. */
-export function setPieces(weapon: Weapon, gear: Gear[], prices: QualityPriceLookup, settings: OfferSettings): SetPiece[] {
-  const piece = (slot: SetPiece['slot'], item: Weapon | Gear): SetPiece => ({
+/** Version frontiers for a weapon and its usual gear, priced in one city. */
+export function setPieces(
+  weapon: Weapon,
+  gear: Gear[],
+  prices: QualityPriceLookup,
+  settings: OfferSettings,
+  specItemPower = 0,
+): SetPiece[] {
+  const piece = (slot: SetSlot, item: Weapon | Gear, bonus?: (tier: number) => number): SetPiece => ({
     slot,
     base: item.base,
     name: item.name,
-    frontier: valueFrontier(weaponOptions(item, prices, settings)),
+    frontier: valueFrontier(weaponOptions(item, prices, settings, bonus)),
   })
-  return [piece('MainHand', weapon), ...gear.map((g) => piece(g.slot, g))]
+  return [piece('MainHand', weapon, (tier) => specBonus(tier, specItemPower)), ...gear.map((g) => piece(g.slot, g))]
+}
+
+interface FrontPoint {
+  price: number
+  /** Log strength (see power.ts). */
+  log: number
+  /** This slot's frontier index, chained back to the earlier slots' picks. */
+  pick: Pick | null
+}
+interface Pick {
+  index: number
+  prev: Pick | null
+}
+
+function indexes(point: FrontPoint): number[] {
+  const out: number[] = []
+  for (let p = point.pick; p; p = p.prev) out.unshift(p.index)
+  return out
+}
+
+/** Every set worth buying in one city: dearer sets on the front are always stronger. */
+export interface SetPlan {
+  weapon: Weapon
+  city: string
+  pieces: SetPiece[]
+  front: FrontPoint[]
+}
+
+/** Keeps the front small when there are many combinations; steps under 0.1% strength aren't worth showing. */
+const MIN_STEP = 1e-3
+const PRICE_BAND = Math.log(1.005)
+
+/**
+ * Exact best sets at every price: combines the slots one at a time and keeps only the
+ * combinations that are stronger than every cheaper one.
+ */
+export function planSet(weapon: Weapon, city: string, pieces: SetPiece[]): SetPlan {
+  const priced = pieces.filter((p) => p.frontier.length > 0)
+  if (!priced.length || priced[0].slot !== 'MainHand') return { weapon, city, pieces, front: [] }
+  let front: FrontPoint[] = [{ price: 0, log: 0, pick: null }]
+  for (const piece of priced) {
+    const weight = slotWeight(piece.slot, weapon.twoHanded)
+    // Best combination per 0.5% price band, which avoids sorting tens of thousands of combinations.
+    const bands = new Map<number, FrontPoint>()
+    for (const p of front) {
+      piece.frontier.forEach((o, i) => {
+        const price = p.price + o.price
+        const log = p.log + weight * (o.itemPower - BASELINE_ITEM_POWER)
+        const band = Math.floor(Math.log(Math.max(price, 1)) / PRICE_BAND)
+        const held = bands.get(band)
+        if (!held || log > held.log || (log === held.log && price < held.price)) {
+          bands.set(band, { price, log, pick: { index: i, prev: p.pick } })
+        }
+      })
+    }
+    front = []
+    for (const band of [...bands.keys()].sort((x, y) => x - y)) {
+      const p = bands.get(band)!
+      if (!front.length || p.log > front[front.length - 1].log + MIN_STEP) front.push(p)
+    }
+  }
+  return { weapon, city, pieces, front }
+}
+
+/** One plan per city, each pricing the whole set in that city only. */
+export function planSets(
+  weapon: Weapon,
+  gear: Gear[],
+  prices: QualityPriceLookup,
+  settings: OfferSettings,
+  specItemPower = 0,
+): SetPlan[] {
+  return settings.cities.map((city) =>
+    planSet(weapon, city, setPieces(weapon, gear, prices, { ...settings, cities: [city] }, specItemPower)),
+  )
 }
 
 function averagePower(picks: SetChoice['picks'], twoHanded: boolean): number {
@@ -50,48 +136,53 @@ function averagePower(picks: SetChoice['picks'], twoHanded: boolean): number {
   return total / (picks.length + (twoHanded ? 1 : 0))
 }
 
-/**
- * Best average item power for the budget. Starts every slot on its cheapest version, then
- * repeatedly takes the upgrade that adds the most item power per silver until nothing fits.
- * The weapon counts double when two-handed, as it does in game.
- */
-export function bestSet(weapon: Weapon, pieces: SetPiece[], budget: number): SetChoice | null {
-  const priced = pieces.filter((p) => p.frontier.length > 0)
-  if (!priced.length || priced[0].slot !== 'MainHand') return null
-  const at = priced.map(() => 0)
-  let spent = priced.reduce((sum, p) => sum + p.frontier[0].price, 0)
-  if (spent > budget) return null
-
-  for (;;) {
-    let best: { slot: number; to: number; ratio: number; cost: number } | null = null
-    priced.forEach((p, i) => {
-      const from = p.frontier[at[i]]
-      const weight = p.slot === 'MainHand' && weapon.twoHanded ? 2 : 1
-      for (let j = at[i] + 1; j < p.frontier.length; j++) {
-        const to = p.frontier[j]
-        const cost = to.price - from.price
-        if (spent + cost > budget) break
-        const ratio = ((to.itemPower - from.itemPower) * weight) / cost
-        if (!best || ratio > best.ratio) best = { slot: i, to: j, ratio, cost }
-      }
-    })
-    if (!best) break
-    const { slot, to, cost } = best
-    at[slot] = to
-    spent += cost
+/** Strongest set from one city's plan that fits the budget. */
+export function bestSet(plan: SetPlan, budget: number): SetChoice | null {
+  let point: FrontPoint | null = null
+  for (const p of plan.front) {
+    if (p.price > budget) break
+    point = p
   }
-
+  if (!point) return null
+  const priced = plan.pieces.filter((p) => p.frontier.length > 0)
+  const at = indexes(point)
   const picks = priced.map((piece, i) => ({ piece, option: piece.frontier[at[i]] }))
-  const missing = pieces.filter((p) => !p.frontier.length && p.slot !== 'MainHand').map((p) => p.slot as GearSlot)
-  return { picks, price: spent, itemPower: Math.round(averagePower(picks, weapon.twoHanded)), missing }
+  const missing = plan.pieces.filter((p) => !p.frontier.length && p.slot !== 'MainHand').map((p) => p.slot as GearSlot)
+  return {
+    city: plan.city,
+    picks,
+    price: point.price,
+    itemPower: Math.round(averagePower(picks, plan.weapon.twoHanded)),
+    strength: Math.exp(point.log),
+    missing,
+  }
 }
 
-/** Cheapest complete set, for the slider's lower end. */
-export function cheapestSet(pieces: SetPiece[]): number {
-  return pieces.reduce((sum, p) => sum + (p.frontier[0]?.price ?? 0), 0)
+/** Best city for the budget: complete sets first, then the strongest, then the cheapest. */
+export function bestSetAnyCity(plans: SetPlan[], budget: number): SetChoice | null {
+  let best: SetChoice | null = null
+  for (const plan of plans) {
+    const c = bestSet(plan, budget)
+    if (!c) continue
+    if (
+      !best ||
+      c.missing.length < best.missing.length ||
+      (c.missing.length === best.missing.length &&
+        (c.strength > best.strength || (c.strength === best.strength && c.price < best.price)))
+    )
+      best = c
+  }
+  return best
 }
 
-/** Dearest version of every slot, for the slider's upper end. */
-export function dearestSet(pieces: SetPiece[]): number {
-  return pieces.reduce((sum, p) => sum + (p.frontier[p.frontier.length - 1]?.price ?? 0), 0)
+/** Cheapest set in any city, for the slider's lower end. */
+export function cheapestSet(plans: SetPlan[]): number | null {
+  const prices = plans.filter((p) => p.front.length).map((p) => p.front[0].price)
+  return prices.length ? Math.min(...prices) : null
+}
+
+/** Dearest set worth buying in any city, for the slider's upper end. */
+export function dearestSet(plans: SetPlan[]): number | null {
+  const prices = plans.filter((p) => p.front.length).map((p) => p.front[p.front.length - 1].price)
+  return prices.length ? Math.max(...prices) : null
 }
