@@ -1,0 +1,35 @@
+name: probe
+on:
+  push:
+    branches: [probe-spells]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -s "https://gameinfo-sgp.albiononline.com/api/gameinfo/events?limit=5&offset=0" -o ev.json
+          python3 - <<'PY'
+          import json
+          ev=json.load(open('ev.json'))
+          e=ev[0]
+          print(json.dumps(e['Killer']['Equipment'],indent=1)[:4000])
+          print(sorted(e.keys()))
+          print(sorted(e['Killer'].keys()))
+          n=0;m=0
+          for e in ev:
+            for p in [e['Killer'],e['Victim']]+e.get('Participants',[]):
+              mh=(p.get('Equipment') or {}).get('MainHand')
+              if mh: n+=1; m+= bool(mh.get('ActiveSpells'))
+          print('mainhands',n,'with spells',m)
+          PY
+          curl -s "https://gameinfo.albiononline.com/api/gameinfo/events?limit=20&offset=0" -o ev2.json
+          python3 -c "
+          import json;ev=json.load(open('ev2.json'));
+          import collections
+          n=m=0
+          for e in ev:
+            for p in [e['Killer'],e['Victim']]+e.get('Participants',[]):
+              for s,it in (p.get('Equipment') or {}).items():
+                if it: n+=1; m+=bool(it.get('ActiveSpells') or it.get('PassiveSpells'))
+          print('items',n,'with spells',m)"
+          curl -s "https://gameinfo.albiononline.com/api/gameinfo/events/$(python3 -c "import json;print(json.load(open('ev2.json'))[0]['EventId'])")" | head -c 3000
