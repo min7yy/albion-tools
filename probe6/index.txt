@@ -1,0 +1,8 @@
+builds?limit=2 200 10301
+builds?limit=2&sortBy=upvotes 200 10301
+builds?limit=2&sortBy=updatedAt 200 7313
+builds?limit=200 200 711317
+builds/count 200 14
+dict ['builds', 'nextCursor']
+{'builds': 2, 'nextCursor': {'lastValue': 18, 'lastId': '68984f932529f400acab0035'}}
+200: {'builds': 200, 'nextCursor': {'lastValue': 1, 'lastId': '69eebe5a2bd62599db67d656'}}
