@@ -75,7 +75,7 @@ describe('pruneState and summarize', () => {
   it('drops days older than the window and sums the rest', () => {
     const state = emptyState()
     addEvents(state, [
-      kill(1, '2026-09-20T09:00:00Z', [fire], sickle),
+      kill(1, '2026-09-05T09:00:00Z', [fire], sickle),
       kill(2, '2026-10-06T09:00:00Z', [fire], sickle),
       kill(3, '2026-10-07T09:00:00Z', [fire], sickle),
     ])
@@ -188,5 +188,31 @@ describe('extra kill stats', () => {
     const builds = summarize(state, 'asia', new Date('2026-10-08T12:00:00Z')).weapons.MAIN_FIRESTAFF.builds!
     expect(builds.some(([bases]) => bases[4] === 'CAPERARE')).toBe(true)
     expect(builds.length).toBe(13)
+  })
+})
+
+describe('looking back', () => {
+  it('sums the last week, and goes further back for weapons with few fights', () => {
+    const state = emptyState()
+    const events: KillEvent[] = []
+    let id = 1
+    // 120 sword kills a day for the last 7 days; one fire staff kill 12 days ago and one today.
+    for (let d = 1; d <= 7; d++)
+      for (let n = 0; n < 120; n++)
+        events.push(kill(id++, `2026-10-${String(d + 1).padStart(2, '0')}T09:00:00Z`, [player(`s${id}`, 'T4_MAIN_SWORD')], sickle))
+    events.push(kill(id++, '2026-09-26T09:00:00Z', [fire], sickle))
+    events.push(kill(id++, '2026-10-08T09:00:00Z', [fire], sickle))
+    events.push(kill(id++, '2026-09-20T09:00:00Z', [player('old', 'T4_MAIN_SWORD')], sickle))
+    addEvents(state, events)
+    const now = new Date('2026-10-08T12:00:00Z')
+    pruneState(state, now)
+    const summary = summarize(state, 'asia', now)
+    expect(summary).toMatchObject({ from: '2026-10-02', to: '2026-10-08' })
+    // The sword has plenty in the week, so it stops there.
+    expect(summary.weapons.MAIN_SWORD.stats.s).toEqual([840, 0])
+    expect(summary.weapons.MAIN_SWORD.from).toBeUndefined()
+    // The fire staff looks back through the kept 28 days, dated from its oldest kill.
+    expect(summary.weapons.MAIN_FIRESTAFF).toMatchObject({ from: '2026-09-26', stats: { s: [2, 0] } })
+    expect(summary.weapons.MAIN_FIRESTAFF.trend).toHaveLength(7)
   })
 })

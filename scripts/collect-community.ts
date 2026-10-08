@@ -3,7 +3,7 @@
 // collector. Usage: node --experimental-strip-types scripts/collect-community.ts <folder>
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { countPicks, type CommunityBuild, type CommunityPicks } from '../src/meta/community.ts'
+import { COMMUNITY_VERSION, countPicks, type CommunityBuild, type CommunityPicks } from '../src/meta/community.ts'
 
 const API = process.env.COMMUNITY_URL ?? 'https://api.albionfreemarket.com/be/builds'
 const PAGE = 200
@@ -16,7 +16,7 @@ const out = join(folder, 'community.json')
 
 try {
   const previous = JSON.parse(await readFile(out, 'utf8')) as CommunityPicks
-  if (Date.now() - Date.parse(previous.updatedAt) < REFRESH_HOURS * 3600_000) {
+  if (previous.version === COMMUNITY_VERSION && Date.now() - Date.parse(previous.updatedAt) < REFRESH_HOURS * 3600_000) {
     console.log(`community.json is from ${previous.updatedAt}; skipping`)
     process.exit(0)
   }

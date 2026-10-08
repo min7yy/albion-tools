@@ -1,4 +1,5 @@
 import type { ExtraSlot, MetaSummary, WeaponSummary } from '../meta/aggregate'
+import type { CommunityPicks } from '../meta/community'
 import { shrunkWinRate } from './loadouts'
 import { extraItem } from './spells'
 import { WEAPONS, type Weapon } from './weapons'
@@ -89,6 +90,19 @@ export function extrasOf(w: WeaponSummary | undefined, slot: ExtraSlot, n = 2): 
     const item = extraItem(base)
     return item ? [{ ...item, share: c / total }] : []
   }).slice(0, n)
+}
+
+/** The potion or food most picked in community builds with this weapon, with its share of them. */
+export function communityConsumable(
+  weapon: string,
+  community: CommunityPicks | null,
+  slot: 'Potion' | 'Food',
+): { name: string; icon: string; share: number; builds: number } | null {
+  const c = community?.consumables?.[weapon]
+  if (!c?.builds) return null
+  const [base, n] = Object.entries(c[slot]).sort((a, b) => b[1] - a[1])[0] ?? []
+  const item = base ? extraItem(base) : null
+  return item && n ? { ...item, share: n / c.builds, builds: c.builds } : null
 }
 
 const AREA_LABELS: Record<string, string> = {

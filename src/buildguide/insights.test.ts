@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MetaSummary, WeaponSummary } from '../meta/aggregate'
-import { areaLabel, areasOf, extrasOf, matchupsOf, performanceOf, trendOf } from './insights'
+import { areaLabel, areasOf, communityConsumable, extrasOf, matchupsOf, performanceOf, trendOf } from './insights'
 
 const weapon = (trend: [number, number][], extra: Partial<WeaponSummary> = {}): WeaponSummary => ({ stats: {}, gear: {}, trend, ...extra })
 
@@ -63,5 +63,20 @@ describe('weapon insights', () => {
     ])
     expect(areaLabel('CORRUPTED_DUNGEON')).toBe('Corrupted dungeons')
     expect(areaLabel('SOME_NEW_PLACE')).toBe('Some new place')
+  })
+})
+
+describe('communityConsumable', () => {
+  it('picks the potion or food most used in community builds with the weapon', () => {
+    const community = {
+      updatedAt: '',
+      builds: 4,
+      items: {},
+      consumables: { '2H_BOW': { builds: 4, Potion: { POTION_HEAL: 1, POTION_REVIVE: 3 }, Food: {} } },
+    }
+    expect(communityConsumable('2H_BOW', community, 'Potion')).toEqual({ name: 'Major Gigantify Potion', icon: 'T7_POTION_REVIVE', share: 0.75, builds: 4 })
+    expect(communityConsumable('2H_BOW', community, 'Food')).toBeNull()
+    expect(communityConsumable('MAIN_SWORD', community, 'Potion')).toBeNull()
+    expect(communityConsumable('2H_BOW', null, 'Potion')).toBeNull()
   })
 })

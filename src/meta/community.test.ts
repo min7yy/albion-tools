@@ -18,5 +18,6 @@ describe('countPicks', () => {
     expect(picks.builds).toBe(2)
     expect(picks.items['2H_BOW']).toEqual([2, { MULTISHOT2: 1, SPEEDARCHER_KITE: 2, DEADLYSHOT: 1 }])
     expect(picks.items.POTION_REVIVE).toEqual([2, {}])
+    expect(picks.consumables!['2H_BOW']).toEqual({ builds: 2, Potion: { POTION_REVIVE: 2 }, Food: {} })
   })
 })
