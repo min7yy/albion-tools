@@ -14,31 +14,28 @@ jobs:
         with:
           node-version: 22
       - run: |
-          mkdir -p probe12
+          mkdir -p probe13
           cat > /tmp/p.mjs <<'JS'
           import fs from 'fs'
           const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36'
           const get = async (u) => { try { const r = await fetch(u, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(30000) }); return [r.status, await r.text()] } catch (e) { return ['ERR ' + e.message, ''] } }
           const out = {}
-          for (const u of ['https://albionoracle.com/robots.txt', 'https://albionslayerboard.com/robots.txt', 'https://www.albionkit.com/robots.txt']) out[u] = (await get(u))[1].slice(0, 1500)
-          const [, meta] = await get('https://albionoracle.com/en/meta')
-          out.oracleText = meta.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 6000)
-          out.oracleLinks = [...new Set([...meta.matchAll(/href="(\/[^"]+)"/g)].map((m) => m[1]))].slice(0, 80)
-          out.oracleScripts = [...meta.matchAll(/src="([^"]+)"/g)].map((m) => m[1]).slice(0, 30)
-          out.oracleFetch = [...new Set([...meta.matchAll(/fetch\(([^)]{0,120})/g)].map((m) => m[1]))].slice(0, 30)
           const [, sl] = await get('https://albionslayerboard.com/')
           let js = ''
-          for (const m of sl.matchAll(/src="([^"]+\.js)"/g)) js += (await get(new URL(m[1], 'https://albionslayerboard.com/').href))[1]
-          for (const m of js.matchAll(/["'`](\/assets\/[^"'`]+\.js)/g)) js += (await get(new URL(m[1], 'https://albionslayerboard.com/').href))[1]
-          out.slayerApi = [...new Set([...js.matchAll(/.{0,40}api\.albionslayerboard\.com.{0,120}/g)].map((m) => m[0]))].slice(0, 30)
-          out.slayerPaths = [...new Set([...js.matchAll(/["'`](\/(?:v\d|api|meta|builds?|weapons?|stats|leaderboard)[a-zA-Z0-9/_${}.-]{0,80})/g)].map((m) => m[1]))].slice(0, 80)
-          out.slayerSpells = [...new Set([...js.matchAll(/.{0,60}(?:spell|abilit)[a-zA-Z]*.{0,60}/gi)].map((m) => m[0]))].slice(0, 20)
-          const [, kit] = await get('https://www.albionkit.com/tools/killboard')
-          let kjs = ''
-          for (const m of kit.matchAll(/src="([^"]+\.js)"/g)) kjs += (await get(new URL(m[1], 'https://www.albionkit.com/').href))[1]
-          out.kitFetch = [...new Set([...kjs.matchAll(/.{0,30}(?:fetch\(|gameinfo|\/api\/).{0,100}/g)].map((m) => m[0]))].slice(0, 30)
-          fs.writeFileSync('probe12.json', JSON.stringify(out, null, 1))
+          const seen = new Set()
+          const queue = [...sl.matchAll(/(?:src|href)="([^"]+\.js)"/g)].map((m) => new URL(m[1], 'https://albionslayerboard.com/').href)
+          while (queue.length && seen.size < 40) {
+            const u = queue.shift(); if (seen.has(u)) continue; seen.add(u)
+            const t = (await get(u))[1]; js += t
+            for (const m of t.matchAll(/["'`(]\.?\.?\/?(assets\/[^"'`)]+\.js)/g)) queue.push(new URL(m[1], 'https://albionslayerboard.com/').href)
+          }
+          out.files = [...seen]
+          out.templates = [...new Set([...js.matchAll(/`\$\{[a-zA-Z_$]{1,4}\}(\/[^`]{1,120})`/g)].map((m) => m[1]))].slice(0, 120)
+          out.abilityCtx = [...new Set([...js.matchAll(/.{0,120}(?:spells|abilities|selectedSpells|ActiveSpells)\b.{0,120}/g)].map((m) => m[0]))].slice(0, 25)
+          out.dataSrc = [...new Set([...js.matchAll(/.{0,100}(?:gameinfo|albion-online-data|websocket|wss:\/\/|nats).{0,100}/gi)].map((m) => m[0]))].slice(0, 20)
+          for (const path of ['/', '/health', '/meta', '/weapons', '/builds', '/stats', '/leaderboard', '/api', '/docs']) out['GET ' + path] = (await get('https://api.albionslayerboard.com' + path)).map((x) => String(x).slice(0, 400))
+          fs.writeFileSync('probe13.json', JSON.stringify(out, null, 1))
           JS
-          node /tmp/p.mjs > probe12/log.txt 2>&1 || true
+          node /tmp/p.mjs > probe13/log.txt 2>&1 || true
           git config user.name probe; git config user.email probe@x
-          mv probe12.json probe12/out.json; git add probe12; git commit -m "probe12 output"; git push
+          mv probe13.json probe13/out.json; git add probe13; git commit -m "probe13 output"; git push
