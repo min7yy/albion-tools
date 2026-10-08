@@ -14,28 +14,29 @@ jobs:
         with:
           node-version: 22
       - run: |
-          mkdir -p probe13
+          mkdir -p probe14
           cat > /tmp/p.mjs <<'JS'
           import fs from 'fs'
           const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36'
           const get = async (u) => { try { const r = await fetch(u, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(30000) }); return [r.status, await r.text()] } catch (e) { return ['ERR ' + e.message, ''] } }
           const out = {}
-          const [, sl] = await get('https://albionslayerboard.com/')
-          let js = ''
-          const seen = new Set()
-          const queue = [...sl.matchAll(/(?:src|href)="([^"]+\.js)"/g)].map((m) => new URL(m[1], 'https://albionslayerboard.com/').href)
-          while (queue.length && seen.size < 40) {
-            const u = queue.shift(); if (seen.has(u)) continue; seen.add(u)
-            const t = (await get(u))[1]; js += t
-            for (const m of t.matchAll(/["'`(]\.?\.?\/?(assets\/[^"'`)]+\.js)/g)) queue.push(new URL(m[1], 'https://albionslayerboard.com/').href)
+          const A = 'https://api.albionslayerboard.com'
+          const [, juicy] = await get(A + '/duels/juicy?region=EU&limit=5&minTotalValue=500000&sinceDays=7')
+          out.juicy = juicy.slice(0, 3000)
+          const ids = [...new Set([...juicy.matchAll(/"(?:eventId|EventId|id)"\s*:\s*"?(\d{6,})/g)].map((m) => m[1]))].slice(0, 3)
+          out.ids = ids
+          for (const id of ids) {
+            const [st, raw] = await get(A + '/events/' + id + '/raw?plain=1')
+            out['raw ' + id] = [st, raw.slice(0, 200)]
+            const sp = [...raw.matchAll(/"(ActiveSpells|PassiveSpells)"\s*:\s*(\[[^\]]*\])/g)].map((m) => m[1] + '=' + m[2].slice(0, 200))
+            out['rawSpells ' + id] = sp
+            const [st2, off] = await get('https://gameinfo-ams.albiononline.com/api/gameinfo/events/' + id)
+            out['official ' + id] = [st2, [...off.matchAll(/"(ActiveSpells|PassiveSpells)"\s*:\s*(\[[^\]]*\])/g)].map((m) => m[1] + '=' + m[2].slice(0, 200)), off.slice(0, 300)]
           }
-          out.files = [...seen]
-          out.templates = [...new Set([...js.matchAll(/`\$\{[a-zA-Z_$]{1,4}\}(\/[^`]{1,120})`/g)].map((m) => m[1]))].slice(0, 120)
-          out.abilityCtx = [...new Set([...js.matchAll(/.{0,120}(?:spells|abilities|selectedSpells|ActiveSpells)\b.{0,120}/g)].map((m) => m[0]))].slice(0, 25)
-          out.dataSrc = [...new Set([...js.matchAll(/.{0,100}(?:gameinfo|albion-online-data|websocket|wss:\/\/|nats).{0,100}/gi)].map((m) => m[0]))].slice(0, 20)
-          for (const path of ['/', '/health', '/meta', '/weapons', '/builds', '/stats', '/leaderboard', '/api', '/docs']) out['GET ' + path] = (await get('https://api.albionslayerboard.com' + path)).map((x) => String(x).slice(0, 400))
-          fs.writeFileSync('probe13.json', JSON.stringify(out, null, 1))
+          const [, lbm] = await get(A + '/cd/leaderboard/meta?region=EU&tier=slayer&ids=')
+          out.lbmeta = lbm.slice(0, 1500)
+          fs.writeFileSync('probe14.json', JSON.stringify(out, null, 1))
           JS
-          node /tmp/p.mjs > probe13/log.txt 2>&1 || true
+          node /tmp/p.mjs > probe14/log.txt 2>&1 || true
           git config user.name probe; git config user.email probe@x
-          mv probe13.json probe13/out.json; git add probe13; git commit -m "probe13 output"; git push
+          mv probe14.json probe14/out.json; git add probe14; git commit -m "probe14 output"; git push
