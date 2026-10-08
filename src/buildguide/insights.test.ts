@@ -57,5 +57,7 @@ describe('communityConsumable', () => {
     expect(communityConsumable('2H_BOW', community, 'Food')).toBeNull()
     expect(communityConsumable('MAIN_SWORD', community, 'Potion')).toBeNull()
     expect(communityConsumable('2H_BOW', null, 'Potion')).toBeNull()
+    const single = { updatedAt: '', builds: 1, items: {}, consumables: { '2H_BOW': { builds: 1, Potion: { POTION_HEAL: 1 }, Food: {} } } }
+    expect(communityConsumable('2H_BOW', single, 'Potion')).toBeNull()
   })
 })

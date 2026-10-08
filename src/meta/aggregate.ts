@@ -114,9 +114,20 @@ export interface DayStats {
 /** Rolling state kept between job runs. */
 export interface MetaState {
   version: 1
+  /** Newest event id seen, for the run status. */
   lastEventId: number
+  /**
+   * Ids of the events already counted, newest last. The feed lists kills out of id order (some show
+   * up minutes after later ones), so a "newer than the last id" cutoff would drop them.
+   */
+  seenIds?: number[]
+  /** Set when loading state saved before seenIds: events at or below it were counted by id cutoff. */
+  seenFloor?: number
   days: Record<string, DayStats>
 }
+
+/** Event ids remembered: the feed only pages back about 1,000 events, so this covers several passes' worth. */
+export const SEEN_IDS = 10_000
 
 export function emptyState(): MetaState {
   return { version: 1, lastEventId: 0, days: {} }
@@ -196,16 +207,24 @@ function record(day: DayStats, player: KillPlayer, size: FightSize, outcome: 0 |
   }
 }
 
-/**
- * Adds events newer than `since` (by default the newest event of the previous run) and returns
- * how many were added. A run pages newest first, so it passes the previous run's id on every page.
- */
-export function addEvents(state: MetaState, events: KillEvent[], since = state.lastEventId): number {
+const seenSets = new WeakMap<MetaState, Set<number>>()
+
+function seenSet(state: MetaState): Set<number> {
+  let set = seenSets.get(state)
+  if (!set) seenSets.set(state, (set = new Set(state.seenIds ?? [])))
+  return set
+}
+
+/** Adds the events not counted before, whatever their order, and returns how many were added. */
+export function addEvents(state: MetaState, events: KillEvent[]): number {
+  const seen = seenSet(state)
+  const ids = (state.seenIds ??= [])
   let added = 0
-  let maxId = state.lastEventId
   for (const event of events) {
-    if (event.EventId <= since) continue
-    maxId = Math.max(maxId, event.EventId)
+    if (seen.has(event.EventId) || event.EventId <= (state.seenFloor ?? 0)) continue
+    seen.add(event.EventId)
+    ids.push(event.EventId)
+    state.lastEventId = Math.max(state.lastEventId, event.EventId)
     const date = event.TimeStamp.slice(0, 10)
     const day = (state.days[date] ??= { events: 0, weapons: {}, gear: {} })
     const attacking = attackers(event)
@@ -215,7 +234,9 @@ export function addEvents(state: MetaState, events: KillEvent[], since = state.l
     day.events++
     added++
   }
-  state.lastEventId = maxId
+  if (ids.length > SEEN_IDS) {
+    for (const id of ids.splice(0, ids.length - SEEN_IDS)) seen.delete(id)
+  }
   return added
 }
 

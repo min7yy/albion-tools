@@ -13,6 +13,15 @@ const SLOTS = { mainhand: 'MainHand', head: 'Head', armor: 'Armor', shoes: 'Shoe
 const WEAPON_KEYS = { 1: 'Q', 2: 'W', 3: 'E' }
 const GEAR_KEYS = { Head: 'D', Armor: 'R', Shoes: 'F' }
 const KEY_ORDER = ['Q', 'W', 'E', 'D', 'R', 'F', 'P']
+// What an active skill is for, from the game's own tooltip icon type (uitype).
+const KINDS = {
+  damage: 'damage',
+  crowdcontrol: 'control',
+  movement: 'mobility',
+  heal: 'heal',
+  buff: 'buff',
+  debuff: 'debuff',
+}
 // Always-on helpers listed with armour that nobody picks.
 const IGNORED = new Set(['OUTOFCOMBATHEAL'])
 
@@ -175,6 +184,7 @@ for (const item of byId.values()) {
         desc: describe(spell),
         ...(spell['@recastdelay'] && Number(spell['@recastdelay']) > 0 ? { cd: Number(spell['@recastdelay']) } : {}),
         ...(spell['@energyusage'] && Number(spell['@energyusage']) > 0 ? { energy: Number(spell['@energyusage']) } : {}),
+        ...(!passive && KINDS[spell['@uitype']] ? { kind: KINDS[spell['@uitype']] } : {}),
       }
     }
   }

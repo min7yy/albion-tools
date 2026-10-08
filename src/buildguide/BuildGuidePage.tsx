@@ -250,7 +250,8 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
         killboard only records fights where someone died, so ganks count as wins: treat win rates as a guide. The killboard
         doesn't record skills, so the recommended skill on each key is the one most picked in Albion Free Market builds
         that have more upvotes than downvotes and were made or edited in the last year (every option comes from the game
-        files). Recommended potions and food show what players brought in
+        files). How to play is written from the same data: where the weapon wins by fight size, and what each recommended
+        skill is for (damage, crowd control, mobility, buffs or healing, as the game tags it). Recommended potions and food show what players brought in
         kills alongside the community's pick. Rising and falling
         compare a weapon's share of fights over the last two days with the days before. Recommended weighs win rate and
         how much it's played equally. Weapons are grouped by the role they usually play.

@@ -23,6 +23,12 @@ describe('spellOptions', () => {
     expect(communityBuilds('MAIN_SWORD', community)).toBe(0)
   })
 
+  it('ignores community picks from a single build', () => {
+    const community = { updatedAt: '', builds: 1, items: { '2H_BOW': [1, { MULTISHOT2: 1 }] as [number, Record<string, number>] } }
+    expect(spellOptions('2H_BOW', community)[0].options.every((o) => o.picked === null)).toBe(true)
+    expect(communityBuilds('2H_BOW', community)).toBe(0)
+  })
+
   it('knows armour and cape skills', () => {
     expect(spellOptions('ARMOR_PLATE_SET1', null).map((g) => g.key)).toEqual(['R', 'P'])
     expect(spellOptions('CAPEITEM_FW_MARTLOCK', null)[0].options[0].spell.name).toBe('Shield of Protection')
