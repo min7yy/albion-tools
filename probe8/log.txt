@@ -1,0 +1,3 @@
+americas: 1039 new events over 4 passes
+europe: 1048 new events over 4 passes
+asia: 1061 new events over 4 passes
