@@ -1,10 +1,6 @@
 import type { ExtraSlot, MetaSummary, WeaponSummary } from '../meta/aggregate'
 import type { CommunityPicks } from '../meta/community'
-import { shrunkWinRate } from './loadouts'
 import { extraItem } from './spells'
-import { WEAPONS, type Weapon } from './weapons'
-
-const WEAPON_BY_BASE = new Map(WEAPONS.map((w) => [w.base, w]))
 
 /** Fights a weapon needs over the window before it's called rising or falling. */
 export const TREND_MIN_FIGHTS = 30
@@ -40,48 +36,6 @@ export function trendOf(weapon: string, summary: MetaSummary): { dir: 'up' | 'do
   return null
 }
 
-export interface Performance {
-  /** Average damage and healing per kill the weapon took part in. */
-  damage: number | null
-  healing: number | null
-  /** Average fame of the players it landed the killing blow on. */
-  killFame: number | null
-}
-
-export function performanceOf(w: WeaponSummary | undefined): Performance | null {
-  const p = w?.perf
-  if (!p) return null
-  const [damage, healing, attacks, fame, blows] = p
-  return {
-    damage: attacks ? damage / attacks : null,
-    healing: attacks ? healing / attacks : null,
-    killFame: blows ? fame / blows : null,
-  }
-}
-
-export interface Matchup {
-  opponent: Weapon
-  wins: number
-  losses: number
-  winRate: number
-}
-
-/** Fights against one weapon before it's listed as a matchup. */
-export const MATCHUP_MIN_FIGHTS = 3
-
-/** Opponent weapons it beats and loses to most (killing blows only), best first and worst first. */
-export function matchupsOf(w: WeaponSummary | undefined, n = 3): { strong: Matchup[]; weak: Matchup[] } {
-  const list: Matchup[] = []
-  for (const [base, wins, losses] of w?.matchups ?? []) {
-    const opponent = WEAPON_BY_BASE.get(base)
-    if (!opponent || wins + losses < MATCHUP_MIN_FIGHTS) continue
-    list.push({ opponent, wins, losses, winRate: shrunkWinRate(wins, wins + losses) })
-  }
-  const strong = list.filter((m) => m.wins > m.losses).sort((a, b) => b.winRate - a.winRate)
-  const weak = list.filter((m) => m.losses > m.wins).sort((a, b) => a.winRate - b.winRate)
-  return { strong: strong.slice(0, n), weak: weak.slice(0, n) }
-}
-
 /** The potions, food, mounts and bags most often brought with a weapon, with their share. */
 export function extrasOf(w: WeaponSummary | undefined, slot: ExtraSlot, n = 2): { name: string; icon: string; share: number }[] {
   const counts = w?.gear[slot] ?? []
@@ -103,28 +57,4 @@ export function communityConsumable(
   const [base, n] = Object.entries(c[slot]).sort((a, b) => b[1] - a[1])[0] ?? []
   const item = base ? extraItem(base) : null
   return item && n ? { ...item, share: n / c.builds, builds: c.builds } : null
-}
-
-const AREA_LABELS: Record<string, string> = {
-  OPEN_WORLD: 'Open world',
-  HELLGATE: 'Hellgates',
-  CORRUPTED_DUNGEON: 'Corrupted dungeons',
-  CRYSTAL_LEAGUE: 'Crystal arena',
-  ARENA: 'Arena',
-  MISTS: 'Mists',
-  UNKNOWN: 'Other',
-}
-
-export function areaLabel(area: string): string {
-  return AREA_LABELS[area] ?? area.charAt(0) + area.slice(1).toLowerCase().replace(/_/g, ' ')
-}
-
-/** Where its fights happen, largest share first. */
-export function areasOf(w: WeaponSummary | undefined): { area: string; share: number }[] {
-  const entries = Object.entries(w?.areas ?? {}).map(([area, [a, b]]) => [area, a + b] as const)
-  const total = entries.reduce((n, [, c]) => n + c, 0)
-  return entries
-    .filter(([, c]) => c > 0)
-    .sort((a, b) => b[1] - a[1])
-    .map(([area, c]) => ({ area, share: c / total }))
 }

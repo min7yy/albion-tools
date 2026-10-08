@@ -73,6 +73,8 @@ input[type='range'] { width: 100%; padding: 0; border: none; background: none; a
 .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; min-width: 0; }
 label { display: flex; flex-direction: column; gap: 5px; font-size: 0.75rem; color: var(--muted); font-weight: 500; }
 label.check { flex-direction: row; align-items: center; gap: 9px; color: var(--text); font-size: 0.85rem; font-weight: 400; cursor: pointer; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field-label { font-size: 0.75rem; color: var(--muted); font-weight: 500; }
 .inline { display: flex; align-items: center; gap: 6px; color: var(--text); }
 .inline input { width: 100%; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between; margin-bottom: 14px; }
@@ -183,6 +185,11 @@ table.breakdown.set td { vertical-align: middle; }
 }
 .type-chips { margin: -4px 0 10px; }
 .type-chips button { font-size: 0.8rem; padding: 3px 10px; }
+@media (max-width: 600px) {
+  /* One swipeable row on phones instead of four rows of chips. */
+  .type-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-right: -18px; padding-right: 18px; }
+  .type-chips button { flex: none; }
+}
 .tag-avg { font-size: 0.7rem; color: var(--muted); font-style: italic; }
 .show-more { display: block; margin: 12px auto 0; }
 

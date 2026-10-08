@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addEvents, emptyState, fightSize, isWeapon, itemBase, pruneState, summarize, type KillEvent } from './aggregate'
+import { addEvents, emptyState, fightSize, isWeapon, itemBase, pruneState, summarize, type DayStats, type KillEvent } from './aggregate'
 
 function player(id: string, main: string | null, gear: Record<string, string> = {}) {
   const equipment: Record<string, { Type: string } | null> = { MainHand: main ? { Type: main } : null }
@@ -136,26 +136,24 @@ describe('item power', () => {
 
 describe('extra kill stats', () => {
   const event = (): KillEvent => {
-    const attacker = { ...player('a', 'T4_MAIN_FIRESTAFF', { Potion: 'T6_POTION_HEAL@1', Food: 'T8_MEAL_STEW' }), DamageDone: 1200.4, SupportHealingDone: 50, AverageItemPower: 1250 }
-    const healer = { ...player('b', 'T6_2H_HOLYSTAFF'), DamageDone: 0, SupportHealingDone: 900 }
-    return {
-      ...kill(20, '2026-10-08T09:00:00Z', [attacker, healer], { ...sickle, AverageItemPower: 1050 }),
-      KillArea: 'HELLGATE',
-      TotalVictimKillFame: 30000,
-    }
+    const attacker = { ...player('a', 'T4_MAIN_FIRESTAFF', { Potion: 'T6_POTION_HEAL@1', Food: 'T8_MEAL_STEW' }), AverageItemPower: 1250 }
+    const healer = player('b', 'T6_2H_HOLYSTAFF')
+    return kill(20, '2026-10-08T09:00:00Z', [attacker, healer], { ...sickle, AverageItemPower: 1050 })
   }
 
-  it('records consumables, damage, healing, kill fame, matchups and areas', () => {
+  it('records consumables', () => {
     const state = emptyState()
     addEvents(state, [event()])
     const day = state.days['2026-10-08']
     expect(day.gear.MAIN_FIRESTAFF.Potion).toEqual({ POTION_HEAL: 1 })
     expect(day.gear.MAIN_FIRESTAFF.Food).toEqual({ MEAL_STEW: 1 })
-    expect(day.perf!.MAIN_FIRESTAFF).toEqual([1200, 50, 1, 30000, 1])
-    expect(day.perf!['2H_HOLYSTAFF']).toEqual([0, 900, 1, 0, 0])
-    expect(day.matchups!.MAIN_FIRESTAFF).toEqual({ '2H_DUALSICKLE_UNDEAD': [1, 0] })
-    expect(day.matchups!['2H_DUALSICKLE_UNDEAD']).toEqual({ MAIN_FIRESTAFF: [0, 1] })
-    expect(day.areas!['2H_DUALSICKLE_UNDEAD']).toEqual({ HELLGATE: [0, 1] })
+  })
+
+  it('drops the damage, matchup and area counts older runs saved', () => {
+    const state = emptyState()
+    state.days['2026-10-08'] = { events: 1, weapons: { MAIN_SWORD: { s: [1, 0] } }, gear: {}, perf: {}, matchups: {}, areas: {} } as DayStats
+    pruneState(state, new Date('2026-10-08T12:00:00Z'))
+    expect(Object.keys(state.days['2026-10-08'])).toEqual(['events', 'weapons', 'gear'])
   })
 
   it('summarises them with a daily trend', () => {
@@ -165,9 +163,6 @@ describe('extra kill stats', () => {
     expect(summary.dates).toEqual(['2026-10-07', '2026-10-08'])
     const w = summary.weapons.MAIN_FIRESTAFF
     expect(w.trend).toEqual([[1, 0], [1, 0]])
-    // Two killing blows, but only the second kill recorded damage.
-    expect(w.perf).toEqual([1200, 50, 1, 30000, 2])
-    expect(w.matchups).toEqual([['2H_DUALSICKLE_UNDEAD', 2, 0]])
     expect(w.gear.Potion).toEqual([['POTION_HEAL', 1]])
     expect(summary.weapons['2H_HOLYSTAFF'].trend).toEqual([[0, 0], [1, 0]])
   })

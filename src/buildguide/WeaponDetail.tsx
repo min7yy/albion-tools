@@ -4,7 +4,7 @@ import type { CommunityPicks } from '../meta/community'
 import { iconId, SLOT_LABELS } from './gear'
 import { alternatives, type WeaponRow } from './loadouts'
 import { communityBuilds, KEY_LABELS, spellOptions } from './spells'
-import { areaLabel, areasOf, communityConsumable, extrasOf, matchupsOf, performanceOf, type Matchup } from './insights'
+import { communityConsumable, extrasOf } from './insights'
 import { ItemIcon } from '../components/ItemIcon'
 import { SpellIcon } from './SpellIcon'
 import { formatPercent } from '../lib/format'
@@ -57,38 +57,17 @@ function ItemChip({ icon, name, share, note }: { icon: string; name: string; sha
   )
 }
 
-function MatchupList({ label, list }: { label: string; list: Matchup[] }) {
-  if (!list.length) return null
-  return (
-    <tr>
-      <td>{label}</td>
-      <td className="hint">
-        {list.map((m, i) => (
-          <span key={m.opponent.base} title={`${m.wins} killing blows on it, ${m.losses} deaths to it`}>
-            {i > 0 && ', '}
-            {m.opponent.name} {m.wins}–{m.losses}
-          </span>
-        ))}
-      </td>
-    </tr>
-  )
-}
-
-/** The open card: sets by item power, skills, what else people bring, and how the weapon does. */
+/** The open card: sets by item power, skills, what else people bring, and its record by fight size. */
 export function WeaponDetail({ row: r, summary, community }: { row: WeaponRow; summary: MetaSummary; community: CommunityPicks | null }) {
   const [allSkills, setAllSkills] = useState(false)
   const w = summary.weapons[r.weapon.base]
   const brackets = r.brackets.filter((b) => b.wins + b.losses > 0)
-  const perf = performanceOf(w)
-  const { strong, weak } = matchupsOf(w)
-  const areas = areasOf(w)
   const consumables = (['Potion', 'Food'] as const).map((slot) => ({
     slot,
     kills: extrasOf(w, slot, 1)[0],
     picked: communityConsumable(r.weapon.base, community, slot),
   }))
   const mounts = extrasOf(w, 'Mount', 2)
-  const showAreas = areas.length > 1 || (areas.length === 1 && areas[0].area !== 'OPEN_WORLD')
 
   return (
     <div className="build-body">
@@ -218,33 +197,6 @@ export function WeaponDetail({ row: r, summary, community }: { row: WeaponRow; s
               </tr>
             ) : null
           })}
-          {perf && (perf.damage !== null || perf.killFame !== null) && (
-            <tr>
-              <td>Per kill</td>
-              <td className="hint" colSpan={2}>
-                {[
-                  perf.damage !== null && `${Math.round(perf.damage).toLocaleString()} damage`,
-                  perf.healing !== null && perf.healing >= 1 && `${Math.round(perf.healing).toLocaleString()} healing`,
-                  perf.killFame !== null && `${Math.round(perf.killFame).toLocaleString()} kill fame on its killing blows`,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </td>
-            </tr>
-          )}
-          <MatchupList label="Beats" list={strong} />
-          <MatchupList label="Loses to" list={weak} />
-          {showAreas && (
-            <tr>
-              <td>Where</td>
-              <td className="hint" colSpan={2}>
-                {areas
-                  .slice(0, 4)
-                  .map((a) => `${areaLabel(a.area)} ${formatPercent(a.share, 0)}`)
-                  .join(', ')}
-              </td>
-            </tr>
-          )}
         </tbody>
       </table>
     </div>

@@ -29,9 +29,6 @@ export const BUILDS_PER_DAY = 60
 /** Whole loadouts per weapon in the published summary, plus the top few in each item power bracket. */
 export const BUILDS_IN_SUMMARY = 12
 export const BUILDS_PER_BRACKET = 5
-/** Opponent weapons kept per weapon each day, and in the summary. */
-export const MATCHUPS_PER_DAY = 30
-export const MATCHUPS_IN_SUMMARY = 15
 
 /** Item power brackets the guide shows sets for: from (inclusive), to (exclusive). */
 export const IP_BRACKETS: { from: number; to: number; label: string }[] = [
@@ -46,9 +43,6 @@ interface KillItem {
 }
 interface KillPlayer {
   Id: string
-  /** Only on Participants. */
-  DamageDone?: number
-  SupportHealingDone?: number
   /** Average item power of the player's gear at the time, spec and quality included. */
   AverageItemPower?: number
   Equipment?: Partial<Record<string, KillItem | null>>
@@ -58,9 +52,6 @@ export interface KillEvent {
   EventId: number
   TimeStamp: string
   numberOfParticipants?: number
-  /** OPEN_WORLD, HELLGATE, CORRUPTED_DUNGEON and so on. */
-  KillArea?: string
-  TotalVictimKillFame?: number
   Killer: KillPlayer
   Victim: KillPlayer
   Participants?: KillPlayer[]
@@ -109,18 +100,6 @@ export function filterStats(stats: WeaponStats, filter: StatsFilter = {}): [numb
 /** gear[weapon][slot][item] = times seen together. */
 export type GearCounts = Record<string, Partial<Record<TrackedSlot, Record<string, number>>>>
 
-/**
- * perf[weapon] = [damage done, healing done, attacks with those recorded, kill fame from killing
- * blows, killing blows]. Damage and healing are only recorded for attackers.
- */
-export type PerfStats = [number, number, number, number, number]
-
-/** matchups[weapon][opponent weapon] = [killing blows on it, deaths to it]. */
-export type MatchupCounts = Record<string, Record<string, [number, number]>>
-
-/** areas[weapon][kill area] = [wins, losses]. */
-export type AreaCounts = Record<string, Record<string, [number, number]>>
-
 /** builds[weapon][loadout key] = [wins, losses] per fight size; see loadoutKey. */
 export type BuildCounts = Record<string, Record<string, WeaponStats>>
 
@@ -130,10 +109,6 @@ export interface DayStats {
   gear: GearCounts
   /** Whole loadouts; missing on days recorded before loadouts were tracked. */
   builds?: BuildCounts
-  /** Missing on days recorded before 8 October. */
-  perf?: Record<string, PerfStats>
-  matchups?: MatchupCounts
-  areas?: AreaCounts
 }
 
 /** Rolling state kept between job runs. */
@@ -204,20 +179,13 @@ export function weaponOf(player: KillPlayer): string | null {
   return isWeapon(weapon) ? weapon : null
 }
 
-function record(day: DayStats, player: KillPlayer, size: FightSize, outcome: 0 | 1, area: string) {
+function record(day: DayStats, player: KillPlayer, size: FightSize, outcome: 0 | 1) {
   const weapon = weaponOf(player)
   if (!weapon) return
   const key = statKey(size, player.AverageItemPower)
   addPair((day.weapons[weapon] ??= {}), key, outcome)
   const builds = ((day.builds ??= {})[weapon] ??= {})
   addPair((builds[loadoutKey(player)] ??= {}), key, outcome)
-  addPair(((day.areas ??= {})[weapon] ??= {}), area, outcome)
-  if (outcome === 0 && (player.DamageDone !== undefined || player.SupportHealingDone !== undefined)) {
-    const perf = ((day.perf ??= {})[weapon] ??= [0, 0, 0, 0, 0])
-    perf[0] += Math.round(player.DamageDone ?? 0)
-    perf[1] += Math.round(player.SupportHealingDone ?? 0)
-    perf[2]++
-  }
   const gear = (day.gear[weapon] ??= {})
   for (const slot of TRACKED_SLOTS) {
     const type = player.Equipment?.[slot]?.Type
@@ -242,21 +210,8 @@ export function addEvents(state: MetaState, events: KillEvent[], since = state.l
     const day = (state.days[date] ??= { events: 0, weapons: {}, gear: {} })
     const attacking = attackers(event)
     const size = fightSize(event.numberOfParticipants || attacking.length)
-    const area = event.KillArea || 'UNKNOWN'
-    for (const p of attacking) record(day, p, size, 0, area)
-    record(day, event.Victim, size, 1, area)
-    const killer = weaponOf(event.Killer)
-    const victim = weaponOf(event.Victim)
-    if (killer) {
-      const perf = ((day.perf ??= {})[killer] ??= [0, 0, 0, 0, 0])
-      perf[3] += event.TotalVictimKillFame ?? 0
-      perf[4]++
-    }
-    if (killer && victim) {
-      const matchups = (day.matchups ??= {})
-      addPair((matchups[killer] ??= {}), victim, 0)
-      addPair((matchups[victim] ??= {}), killer, 1)
-    }
+    for (const p of attacking) record(day, p, size, 0)
+    record(day, event.Victim, size, 1)
     day.events++
     added++
   }
@@ -268,14 +223,6 @@ function topBuilds(builds: Record<string, WeaponStats>, n: number): Record<strin
   return Object.fromEntries(
     Object.entries(builds)
       .sort((a, b) => totalFights(b[1]) - totalFights(a[1]) || a[0].localeCompare(b[0]))
-      .slice(0, n),
-  )
-}
-
-function topPairs(pairs: Record<string, [number, number]>, n: number): Record<string, [number, number]> {
-  return Object.fromEntries(
-    Object.entries(pairs)
-      .sort((a, b) => b[1][0] + b[1][1] - a[1][0] - a[1][1] || a[0].localeCompare(b[0]))
       .slice(0, n),
   )
 }
@@ -322,9 +269,8 @@ export function pruneState(state: MetaState, now: Date): void {
     for (const [weapon, builds] of Object.entries(day.builds ?? {})) {
       day.builds![weapon] = topBuilds(builds, BUILDS_PER_DAY)
     }
-    for (const [weapon, opponents] of Object.entries(day.matchups ?? {})) {
-      day.matchups![weapon] = topPairs(opponents, MATCHUPS_PER_DAY)
-    }
+    // Damage, kill fame, matchups and areas were tracked briefly on 8 October; drop them from saved days.
+    for (const old of ['perf', 'matchups', 'areas']) delete (day as unknown as Record<string, unknown>)[old]
   }
 }
 
@@ -347,10 +293,6 @@ export interface WeaponSummary {
   builds?: [string[], WeaponStats][]
   /** [wins, losses] per day, lined up with MetaSummary.dates. */
   trend?: [number, number][]
-  perf?: PerfStats
-  /** Opponent weapons it met most, as [opponent, killing blows on it, deaths to it]. */
-  matchups?: [string, number, number][]
-  areas?: Record<string, [number, number]>
   /** First day counted, when the weapon had too few fights in the summary window and looked further back. */
   from?: string
 }
@@ -375,9 +317,6 @@ function summarizeWeapon(weapon: string, state: MetaState, days: string[], dates
   const stats: WeaponStats = {}
   const gear: Partial<Record<TrackedSlot, Record<string, number>>> = {}
   const builds: Record<string, WeaponStats> = {}
-  const matchups: Record<string, [number, number]> = {}
-  const areas: Record<string, [number, number]> = {}
-  let perf: PerfStats | undefined
   for (const date of days) {
     const day = state.days[date]
     sumPairs(stats, day.weapons[weapon] ?? {})
@@ -388,29 +327,16 @@ function summarizeWeapon(weapon: string, state: MetaState, days: string[], dates
         counts[item] = (counts[item] ?? 0) + n
       }
     }
-    const p = day.perf?.[weapon]
-    if (p) {
-      perf ??= [0, 0, 0, 0, 0]
-      p.forEach((v, i) => (perf![i] += v))
-    }
-    sumPairs(matchups, day.matchups?.[weapon] ?? {})
-    sumPairs(areas, day.areas?.[weapon] ?? {})
   }
   const top: WeaponSummary['gear'] = {}
   for (const slot of TRACKED_SLOTS) if (gear[slot]) top[slot] = Object.entries(topEntries(gear[slot], GEAR_IN_SUMMARY))
   const loadouts = Object.entries(summaryBuilds(builds)).map(([key, s]): [string[], WeaponStats] => [key.split('|'), s])
-  const opponents = Object.entries(topPairs(matchups, MATCHUPS_IN_SUMMARY)).map(
-    ([opp, [w, l]]): [string, number, number] => [opp, w, l],
-  )
   const oldest = days[days.length - 1]
   return {
     stats,
     gear: top,
     ...(loadouts.length ? { builds: loadouts } : {}),
     trend: dates.map((date) => filterStats(state.days[date].weapons[weapon] ?? {})),
-    ...(perf ? { perf } : {}),
-    ...(opponents.length ? { matchups: opponents } : {}),
-    ...(Object.keys(areas).length ? { areas } : {}),
     ...(oldest < dates[0] ? { from: oldest } : {}),
   }
 }

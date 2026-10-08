@@ -20,7 +20,7 @@ npm run build   # static build in dist/
   fetched from the browser (refining, crafting and flips).
 - **Kills** come from the official gameinfo API. `.github/workflows/meta.yml` runs
   `scripts/collect-meta.ts` nonstop (50-minute runs that start the next one) and force-pushes a
-  rolling week to the `meta-data` branch: `<server>.json` (the summary the Build guide loads) and
+  rolling week to the `meta-data` branch: `<server>.json` (the summary the Meta builds tab loads) and
   `<server>-state.json` (per-day counts carried between runs).
 - **Community skill picks** come from Albion Free Market builds, collected daily by
   `scripts/collect-community.ts` into `meta-data/community.json`.
