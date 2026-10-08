@@ -85,7 +85,7 @@ export function guideFor(row: WeaponRow, community: CommunityPicks | null): Guid
   const sizes = (['s', 'm', 'l'] as const)
     .map((size) => {
       const [w, l] = row.bySize[size]
-      return { size, fights: w + l, rate: w + l ? w / (w + l) : 0 }
+      return { size, fights: Math.round(w + l), rate: w + l ? w / (w + l) : 0 }
     })
     .filter((s) => s.fights >= GUIDE_MIN_FIGHTS)
     .sort((a, b) => b.rate - a.rate)

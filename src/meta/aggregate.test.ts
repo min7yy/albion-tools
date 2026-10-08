@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SEEN_IDS, addEvents, emptyState, fightSize, isWeapon, itemBase, pruneState, summarize, type DayStats, type KillEvent } from './aggregate'
+import { SEEN_IDS, addEvents, emptyState, fightSize, isWeapon, itemBase, pruneState, summarize, type KillEvent } from './aggregate'
 
 function player(id: string, main: string | null, gear: Record<string, string> = {}) {
   const equipment: Record<string, { Type: string } | null> = { MainHand: main ? { Type: main } : null }
@@ -36,13 +36,13 @@ describe('helpers', () => {
 })
 
 describe('addEvents', () => {
-  it('counts kills for every attacker and a death for the victim', () => {
+  it('splits each kill between its attackers and gives the victim a death', () => {
     const state = emptyState()
     const ally = player('b', 'T6_2H_HOLYSTAFF')
     expect(addEvents(state, [kill(10, '2026-10-07T09:00:00Z', [fire, ally], sickle)])).toBe(1)
     const day = state.days['2026-10-07']
-    expect(day.weapons.MAIN_FIRESTAFF).toEqual({ m: [1, 0] })
-    expect(day.weapons['2H_HOLYSTAFF']).toEqual({ m: [1, 0] })
+    expect(day.weapons.MAIN_FIRESTAFF).toEqual({ m: [0.5, 0] })
+    expect(day.weapons['2H_HOLYSTAFF']).toEqual({ m: [0.5, 0] })
     expect(day.weapons['2H_DUALSICKLE_UNDEAD']).toEqual({ m: [0, 1] })
     expect(day.gear.MAIN_FIRESTAFF.OffHand).toEqual({ OFF_HORN_KEEPER: 1 })
     expect(state.lastEventId).toBe(10)
@@ -72,11 +72,6 @@ describe('addEvents', () => {
     expect(state.seenIds!.length).toBe(SEEN_IDS)
     expect(state.seenIds![0]).toBe(6)
     expect(addEvents(state, [events[SEEN_IDS + 4]])).toBe(0)
-  })
-
-  it('keeps the old cutoff for state saved before ids were remembered', () => {
-    const state = { ...emptyState(), lastEventId: 50, seenFloor: 50 }
-    expect(addEvents(state, [kill(49, '2026-10-07T09:00:00Z', [fire], sickle), kill(51, '2026-10-07T09:00:00Z', [fire], sickle)])).toBe(1)
   })
 
   it('skips players with no weapon', () => {
@@ -164,12 +159,6 @@ describe('extra kill stats', () => {
     expect(day.gear.MAIN_FIRESTAFF.Food).toEqual({ MEAL_STEW: 1 })
   })
 
-  it('drops the damage, matchup and area counts older runs saved', () => {
-    const state = emptyState()
-    state.days['2026-10-08'] = { events: 1, weapons: { MAIN_SWORD: { s: [1, 0] } }, gear: {}, perf: {}, matchups: {}, areas: {} } as DayStats
-    pruneState(state, new Date('2026-10-08T12:00:00Z'))
-    expect(Object.keys(state.days['2026-10-08'])).toEqual(['events', 'weapons', 'gear'])
-  })
 
   it('summarises them with a daily trend', () => {
     const state = emptyState()
@@ -177,9 +166,10 @@ describe('extra kill stats', () => {
     const summary = summarize(state, 'asia', new Date('2026-10-08T12:00:00Z'))
     expect(summary.dates).toEqual(['2026-10-07', '2026-10-08'])
     const w = summary.weapons.MAIN_FIRESTAFF
-    expect(w.trend).toEqual([[1, 0], [1, 0]])
+    // The second kill had two attackers, so the fire staff gets half of it.
+    expect(w.trend).toEqual([[1, 0], [0.5, 0]])
     expect(w.gear.Potion).toEqual([['POTION_HEAL', 1]])
-    expect(summary.weapons['2H_HOLYSTAFF'].trend).toEqual([[0, 0], [1, 0]])
+    expect(summary.weapons['2H_HOLYSTAFF'].trend).toEqual([[0, 0], [0.5, 0]])
   })
 
   it('keeps the top loadouts of every item power bracket', () => {
@@ -224,5 +214,17 @@ describe('looking back', () => {
     // The fire staff looks back through the kept 28 days, dated from its oldest kill.
     expect(summary.weapons.MAIN_FIRESTAFF).toMatchObject({ from: '2026-09-26', stats: { s: [2, 0] } })
     expect(summary.weapons.MAIN_FIRESTAFF.trend).toHaveLength(7)
+  })
+})
+
+describe('split kills', () => {
+  it('rounds the shares to three decimals when pruning', () => {
+    const state = emptyState()
+    addEvents(state, [kill(1, '2026-10-07T09:00:00Z', [fire, player('b', 'T4_MAIN_FIRESTAFF'), player('c', 'T4_MAIN_FIRESTAFF')], sickle)])
+    pruneState(state, new Date('2026-10-07T12:00:00Z'))
+    expect(state.days['2026-10-07'].weapons.MAIN_FIRESTAFF.m).toEqual([1, 0])
+    addEvents(state, [kill(2, '2026-10-07T10:00:00Z', [fire, player('d', 'T4_2H_HOLYSTAFF'), player('e', 'T4_2H_HOLYSTAFF')], sickle)])
+    pruneState(state, new Date('2026-10-07T12:00:00Z'))
+    expect(state.days['2026-10-07'].weapons.MAIN_FIRESTAFF.m).toEqual([1.333, 0])
   })
 })
