@@ -11,12 +11,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
-          mkdir -p probe5; cd probe5
+          mkdir -p probe6; cd probe6
           UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36"
-          curl -sL -A "$UA" -m 30 https://albionfreemarket.com/chunk-DFSgxv5S.js | grep -oE '.{0,300}(getTopBuilds|getBuild|searchBuilds).{0,1500}' > ctx.txt || true
           B=https://api.albionfreemarket.com/be
-          for u in "builds/top" "builds/top?page=1" "builds/top?pageSize=50&page=1" "builds/search?query=bow"; do
-            f=$(echo "$u" | tr '/?&=' '____'); curl -sL -A "$UA" -H "Origin: https://albionfreemarket.com" -m 30 -o "$f.json" -w "$u %{http_code} %{content_type} %{size_download}\n" "$B/$u" >> index.txt || true
+          for u in "builds?limit=2" "builds?limit=2&sortBy=upvotes" "builds?limit=2&sortBy=updatedAt" "builds?limit=200" "builds/count"; do
+            f=$(echo "$u" | tr '/?&=' '____'); curl -sL -A "$UA" -H "Origin: https://albionfreemarket.com" -m 60 -o "$f.json" -w "$u %{http_code} %{size_download}\n" "$B/$u" >> index.txt || true
+            sleep 1
           done
+          python3 - <<'PY' >> index.txt
+          import json
+          d=json.load(open('builds_limit_2_sortBy_upvotes.json'))
+          print(type(d).__name__, list(d.keys()) if isinstance(d,dict) else len(d))
+          if isinstance(d,dict):
+            print({k:(v if not isinstance(v,list) else len(v)) for k,v in d.items()})
+          d=json.load(open('builds_limit_200.json'))
+          print('200:', {k:(v if not isinstance(v,list) else len(v)) for k,v in d.items()} if isinstance(d,dict) else len(d))
+          PY
+          rm -f builds_limit_200.json
           cd ..; git config user.name probe; git config user.email probe@x
-          git add probe5; git commit -m "probe5 output"; git push
+          git add probe6; git commit -m "probe6 output"; git push
