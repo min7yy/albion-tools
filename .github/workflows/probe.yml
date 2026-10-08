@@ -14,29 +14,31 @@ jobs:
         with:
           node-version: 22
       - run: |
-          mkdir -p probe11
+          mkdir -p probe12
           cat > /tmp/p.mjs <<'JS'
           import fs from 'fs'
           const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36'
-          const sites = ['https://albionoracle.com/en/meta', 'https://www.albiondatabase.com/', 'https://www.albionkit.com/tools/killboard', 'https://murderledger.albiononline2d.com/', 'https://albionbattlehub.com/en', 'https://albionslayerboard.com/', 'https://www.albionkillboard.space/', 'https://albiononline2d.com/en/builds']
           const get = async (u) => { try { const r = await fetch(u, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(30000) }); return [r.status, await r.text()] } catch (e) { return ['ERR ' + e.message, ''] } }
           const out = {}
-          for (const site of sites) {
-            const [status, html] = await get(site)
-            const origin = new URL(site).origin
-            const scripts = [...html.matchAll(/src="([^"]+\.js[^"]*)"/g)].map((m) => new URL(m[1], site).href).slice(0, 25)
-            let js = ''
-            for (const s of scripts) js += (await get(s))[1]
-            const all = html + js
-            out[site] = {
-              status, bytes: html.length, title: (html.match(/<title>([^<]*)/) || [])[1],
-              apis: [...new Set([...all.matchAll(/["'`]((?:https?:\/\/[a-zA-Z0-9.-]+)?\/api[a-zA-Z0-9/_.?=&${}-]{0,100})/g)].map((m) => m[1]))].slice(0, 80),
-              hosts: [...new Set([...all.matchAll(/https?:\/\/([a-zA-Z0-9.-]+\.[a-z]{2,})/g)].map((m) => m[1]))].slice(0, 60),
-              spells: [...new Set([...all.matchAll(/.{0,50}(?:spells?|abilities|skills?)["']?\s*[:=].{0,50}/gi)].map((m) => m[0]))].slice(0, 15),
-            }
-          }
-          fs.writeFileSync('probe11/out.json', JSON.stringify(out, null, 1))
+          for (const u of ['https://albionoracle.com/robots.txt', 'https://albionslayerboard.com/robots.txt', 'https://www.albionkit.com/robots.txt']) out[u] = (await get(u))[1].slice(0, 1500)
+          const [, meta] = await get('https://albionoracle.com/en/meta')
+          out.oracleText = meta.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 6000)
+          out.oracleLinks = [...new Set([...meta.matchAll(/href="(\/[^"]+)"/g)].map((m) => m[1]))].slice(0, 80)
+          out.oracleScripts = [...meta.matchAll(/src="([^"]+)"/g)].map((m) => m[1]).slice(0, 30)
+          out.oracleFetch = [...new Set([...meta.matchAll(/fetch\(([^)]{0,120})/g)].map((m) => m[1]))].slice(0, 30)
+          const [, sl] = await get('https://albionslayerboard.com/')
+          let js = ''
+          for (const m of sl.matchAll(/src="([^"]+\.js)"/g)) js += (await get(new URL(m[1], 'https://albionslayerboard.com/').href))[1]
+          for (const m of js.matchAll(/["'`](\/assets\/[^"'`]+\.js)/g)) js += (await get(new URL(m[1], 'https://albionslayerboard.com/').href))[1]
+          out.slayerApi = [...new Set([...js.matchAll(/.{0,40}api\.albionslayerboard\.com.{0,120}/g)].map((m) => m[0]))].slice(0, 30)
+          out.slayerPaths = [...new Set([...js.matchAll(/["'`](\/(?:v\d|api|meta|builds?|weapons?|stats|leaderboard)[a-zA-Z0-9/_${}.-]{0,80})/g)].map((m) => m[1]))].slice(0, 80)
+          out.slayerSpells = [...new Set([...js.matchAll(/.{0,60}(?:spell|abilit)[a-zA-Z]*.{0,60}/gi)].map((m) => m[0]))].slice(0, 20)
+          const [, kit] = await get('https://www.albionkit.com/tools/killboard')
+          let kjs = ''
+          for (const m of kit.matchAll(/src="([^"]+\.js)"/g)) kjs += (await get(new URL(m[1], 'https://www.albionkit.com/').href))[1]
+          out.kitFetch = [...new Set([...kjs.matchAll(/.{0,30}(?:fetch\(|gameinfo|\/api\/).{0,100}/g)].map((m) => m[0]))].slice(0, 30)
+          fs.writeFileSync('probe12.json', JSON.stringify(out, null, 1))
           JS
-          node /tmp/p.mjs > probe11/log.txt 2>&1 || true
+          node /tmp/p.mjs > probe12/log.txt 2>&1 || true
           git config user.name probe; git config user.email probe@x
-          git add probe11; git commit -m "probe11 output"; git push
+          mv probe12.json probe12/out.json; git add probe12; git commit -m "probe12 output"; git push
