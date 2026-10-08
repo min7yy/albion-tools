@@ -1,0 +1,123 @@
+{
+ "https://albionoracle.com/en/meta": {
+  "status": 200,
+  "bytes": 87273,
+  "title": "Albion Online PvP Meta 2026 - Best Weapons &amp; Win Rates | AlbionOracle",
+  "apis": [
+   "https://kick.com/api/v2/channels/"
+  ],
+  "hosts": [
+   "www.googletagmanager.com",
+   "albionoracle.com",
+   "fonts.googleapis.com",
+   "fonts.gstatic.com",
+   "schema.org",
+   "www.w3.org",
+   "grindveil.com",
+   "albion-compendium-prices.markclothes-cs.workers.dev",
+   "render.albiononline.com",
+   "twitch.tv",
+   "kick.com",
+   "youtube.com",
+   "decapi.me"
+  ],
+  "spells": [
+   "Ph: \"Search any item…\", codexStats: \"Stats\", codexAbilities: \"Abilities\",",
+   "lay_d: \"Seasons, hideouts, GvG & logistics\", ccat_spells: \"Abilities & Spells\", ccat_spells_d: \"Every weapo",
+   "nego przedmiotu…\", codexStats: \"Statystyki\", codexAbilities: \"Umiejętności\",",
+   "dplay_d: \"Sezony, hideouty, GvG, logistyka\", ccat_spells: \"Umiejętności i Zaklęcia\", ccat_spells_d: \"Wszyst",
+   "es Item suchen…\",\"codexStats\":\"Statistiken\",\"codexAbilities\":\"Fähigkeiten\",\"codexCrafting\":\"Handwerk\",\"codexMar",
+   "play_d\":\"Seasons, Hideouts, GvG, Logistik\", \"ccat_spells\":\"Fähigkeiten & Zauber\", \"ccat_spells_d\":\"Alle Waff",
+   "n'importe quel objet…\",\"codexStats\":\"Stats\",\"codexAbilities\":\"Capacités\",\"codexCrafting\":\"Craft\",\"codexMarketBt",
+   "ay_d\":\"Saisons, repaires, GvG, logistique\", \"ccat_spells\":\"Capacités & Sorts\", \"ccat_spells_d\":\"Toutes les c",
+   "lquier objeto…\",\"codexStats\":\"Estadísticas\",\"codexAbilities\":\"Habilidades\",\"codexCrafting\":\"Fabricación\",\"codex",
+   "_d\":\"Temporadas, guaridas, GvG, logística\", \"ccat_spells\":\"Habilidades y Hechizos\", \"ccat_spells_d\":\"Todas l",
+   "го предмета…\",\"codexStats\":\"Характеристики\",\"codexAbilities\":\"Способности\",\"codexCrafting\":\"Крафт\",\"codexMarket",
+   "play_d\":\"Сезоны, хайдауты, GvG, логистика\", \"ccat_spells\":\"Способности и заклинания\", \"ccat_spells_d\":\"Все с",
+   "Buscar qualquer item…\",\"codexStats\":\"Stats\",\"codexAbilities\":\"Habilidades\",\"codexCrafting\":\"Crafting\",\"codexMar",
+   "_d\":\"Temporadas, hideouts, GvG, logística\", \"ccat_spells\":\"Habilidades e Feitiços\", \"ccat_spells_d\":\"Todas a",
+   "lsiasi oggetto…\",\"codexStats\":\"Statistiche\",\"codexAbilities\":\"Abilità\",\"codexCrafting\":\"Crafting\",\"codexMarketB"
+  ]
+ },
+ "https://www.albiondatabase.com/": {
+  "status": 403,
+  "bytes": 5690,
+  "title": "Just a moment...",
+  "apis": [],
+  "hosts": [
+   "challenges.cloudflare.com"
+  ],
+  "spells": []
+ },
+ "https://www.albionkit.com/tools/killboard": {
+  "status": 200,
+  "bytes": 83719,
+  "title": "Killboard - Real-time PvP Tracker | AlbionKit",
+  "apis": [],
+  "hosts": [
+   "schema.org",
+   "albionkit.com",
+   "discord.gg",
+   "twitter.com",
+   "github.com",
+   "www.w3.org",
+   "buymeacoffee.com"
+  ],
+  "spells": []
+ },
+ "https://murderledger.albiononline2d.com/": {
+  "status": 403,
+  "bytes": 5614,
+  "title": "Just a moment...",
+  "apis": [],
+  "hosts": [
+   "challenges.cloudflare.com"
+  ],
+  "spells": []
+ },
+ "https://albionbattlehub.com/en": {
+  "status": 403,
+  "bytes": 5608,
+  "title": "Just a moment...",
+  "apis": [],
+  "hosts": [
+   "challenges.cloudflare.com"
+  ],
+  "spells": []
+ },
+ "https://albionslayerboard.com/": {
+  "status": 200,
+  "bytes": 82065,
+  "title": "Albion Online Player Search &amp; Killboard | Slayerboard",
+  "apis": [],
+  "hosts": [
+   "www.googletagmanager.com",
+   "albionslayerboard.com",
+   "schema.org",
+   "api.albionslayerboard.com",
+   "www.w3.org",
+   "react.dev",
+   "reactrouter.com",
+   "discord.gg",
+   "render.albiononline.com"
+  ],
+  "spells": []
+ },
+ "https://www.albionkillboard.space/": {
+  "status": "ERR fetch failed",
+  "bytes": 0,
+  "apis": [],
+  "hosts": [],
+  "spells": []
+ },
+ "https://albiononline2d.com/en/builds": {
+  "status": 403,
+  "bytes": 5585,
+  "title": "Just a moment...",
+  "apis": [],
+  "hosts": [
+   "challenges.cloudflare.com"
+  ],
+  "spells": []
+ }
+}
