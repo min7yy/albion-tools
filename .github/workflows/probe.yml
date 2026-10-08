@@ -14,22 +14,29 @@ jobs:
         with:
           node-version: 22
       - run: |
-          mkdir -p probe15
+          mkdir -p probe16
           cat > /tmp/p.mjs <<'JS'
           import fs from 'fs'
-          const out = []
-          let cursor = null
-          for (let page = 0; page < 60; page++) {
-            const params = new URLSearchParams({ limit: '200', sortBy: 'upvotes' })
-            if (cursor) { params.set('cursorLastValue', String(cursor.lastValue)); params.set('cursorLastId', cursor.lastId) }
-            const j = await (await fetch('https://api.albionfreemarket.com/be/builds?' + params)).json()
-            for (const b of j.builds) if ((b.netVotes ?? 0) >= 1 && b.updatedAt >= '2025-10-08') out.push(b)
-            cursor = j.nextCursor
-            if (!cursor || j.builds.length < 200) break
-            await new Promise((r) => setTimeout(r, 1500))
-          }
-          fs.writeFileSync('probe15.json', JSON.stringify(out))
+          import zlib from 'zlib'
+          const base = 'https://gameinfo-ams.albiononline.com'
+          const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+          async function page(o) { for (let a = 0; a < 3; a++) { try { const r = await fetch(`${base}/api/gameinfo/events?limit=51&offset=${o}`); if (r.ok) return await r.json(); if (r.status < 500) return [] } catch {} await sleep(2000) } return [] }
+          async function all() { const out = []; for (let o = 0; o <= 1000; o += 51) { const p = await page(o); if (!p.length) break; out.push(...p); await sleep(300) } return out }
+          const first = await all()
+          const t0 = new Date().toISOString()
+          await sleep(5 * 60 * 1000)
+          const second = await all()
+          const ids1 = new Set(first.map((e) => e.EventId))
+          const max1 = Math.max(...first.map((e) => e.EventId))
+          const min1 = Math.min(...first.map((e) => e.EventId))
+          const newOnes = second.filter((e) => !ids1.has(e.EventId))
+          const late = newOnes.filter((e) => e.EventId <= max1)
+          const order = []; for (let i = 1; i < first.length; i++) if (first[i].EventId > first[i - 1].EventId) order.push([i, first[i - 1].EventId, first[i].EventId])
+          const dupes = first.length - ids1.size
+          const summary = { t0, first: first.length, uniqueFirst: ids1.size, dupes, min1, max1, second: second.length, newInSecond: newOnes.length, lateBelowMax: late.length, lateBelowMin: newOnes.filter((e) => e.EventId < min1).length, lateSample: late.slice(0, 10).map((e) => [e.EventId, e.TimeStamp]), outOfOrderInFirst: order.length, orderSample: order.slice(0, 10), firstTimes: [first[0]?.TimeStamp, first[first.length - 1]?.TimeStamp] }
+          fs.writeFileSync('probe16.json', JSON.stringify(summary, null, 1))
+          fs.writeFileSync('probe16-events.json.gz', zlib.gzipSync(JSON.stringify(first)))
           JS
-          node /tmp/p.mjs > probe15/log.txt 2>&1 || true
+          node /tmp/p.mjs > probe16/log.txt 2>&1 || true
           git config user.name probe; git config user.email probe@x
-          mv probe15.json probe15/out.json; git add probe15; git commit -m "probe15 output"; git push
+          mv probe16.json probe16/out.json; mv probe16-events.json.gz probe16/; git add probe16; git commit -m "probe16 output"; git push
