@@ -1,6 +1,6 @@
-import { iconId, SLOT_LABELS } from '../buildguide/gear'
+import { iconId, SLOT_LABELS } from './gear'
 import type { GearSlot } from '../meta/aggregate'
-import { ItemIcon } from './ItemIcon'
+import { ItemIcon } from '../components/ItemIcon'
 
 interface StripItem {
   base: string

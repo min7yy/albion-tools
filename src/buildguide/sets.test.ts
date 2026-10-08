@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { MetaSummary } from '../meta/aggregate'
-import { isCommonGear, usualGear } from './sets'
+import { usualGear } from './sets'
 import type { Weapon } from './weapons'
 
-const sword: Weapon = { base: 'MAIN_SWORD', name: 'Broadsword', sub: 'sword', twoHanded: false, variants: [] }
+const sword: Weapon = { base: 'MAIN_SWORD', name: 'Broadsword', sub: 'sword', twoHanded: false }
 const claymore: Weapon = { ...sword, base: '2H_CLAYMORE', name: 'Claymore', twoHanded: true }
 
 describe('usualGear', () => {
@@ -25,24 +25,11 @@ describe('usualGear', () => {
     },
   }
 
-  it('tries the usual items first, then common ones, with no off-hand for two-handed weapons', () => {
-    const slots = usualGear(claymore, summary).map((slot) => slot.map((g) => g.base))
-    expect(slots.length).toBe(4)
-    expect(slots[0][0]).toBe('HEAD_PLATE_SET1')
-    expect(slots[1][0]).toBe('ARMOR_PLATE_SET1')
-    expect(slots[3]).toEqual(['CAPE'])
+  it('takes the most worn known item per slot, with no off-hand for two-handed weapons', () => {
+    expect(usualGear(claymore, summary).map((g) => g.base)).toEqual(['HEAD_PLATE_SET1', 'ARMOR_PLATE_SET1', 'SHOES_LEATHER_SET1', 'CAPE'])
   })
 
-  it('fills every slot even for a weapon with no kills', () => {
-    const slots = usualGear(sword, summary).map((slot) => slot.map((g) => g.base))
-    expect(slots.length).toBe(5)
-    expect(slots[0]).toEqual(['OFF_SHIELD', 'OFF_TORCH'])
-    expect(slots.every((s) => s.length > 0)).toBe(true)
-  })
-
-  it('leaves artifacts out of the substitutes', () => {
-    expect(isCommonGear('OFF_HORN_KEEPER')).toBe(false)
-    expect(isCommonGear('CAPEITEM_FW_MARTLOCK')).toBe(false)
-    expect(isCommonGear('HEAD_CLOTH_SET1')).toBe(true)
+  it("fills a weapon's empty slots with the most common item overall", () => {
+    expect(usualGear(sword, summary).map((g) => g.base)).toEqual(['OFF_SHIELD', 'HEAD_PLATE_SET1', 'ARMOR_PLATE_SET1', 'SHOES_LEATHER_SET1', 'CAPE'])
   })
 })

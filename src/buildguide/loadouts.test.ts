@@ -3,7 +3,7 @@ import { filterStats, statKey, type MetaSummary } from '../meta/aggregate'
 import { alternatives, rankBuilds, shrunkWinRate, weaponRow } from './loadouts'
 import type { Weapon } from './weapons'
 
-const sword: Weapon = { base: 'MAIN_SWORD', name: 'Broadsword', sub: 'sword', twoHanded: false, variants: [] }
+const sword: Weapon = { base: 'MAIN_SWORD', name: 'Broadsword', sub: 'sword', twoHanded: false }
 const claymore: Weapon = { ...sword, base: '2H_CLAYMORE', name: 'Claymore', twoHanded: true }
 const bow: Weapon = { ...sword, base: '2H_BOW', name: 'Bow', twoHanded: true }
 const plate = ['HEAD_PLATE_SET1', 'ARMOR_PLATE_SET1', 'SHOES_PLATE_SET1', 'CAPE']

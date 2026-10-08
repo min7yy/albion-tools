@@ -6,8 +6,6 @@ export interface Gear {
   base: string
   name: string
   slot: GearSlot
-  /** [tier, enchantment, item power at normal quality]. */
-  variants: [number, number, number][]
 }
 
 const typed = data as unknown as { source: string; gear: Gear[] }

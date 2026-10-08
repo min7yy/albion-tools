@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import type { ServerId } from '../api/servers'
-import { WEAPONS } from '../buildguide/weapons'
-import { WEAPON_TYPES, weaponTypeLabel } from '../buildguide/types'
-import { ROLES, weaponRole, type Role } from '../buildguide/roles'
-import { FIGHT_FILTERS, type FightFilter } from '../buildguide/meta'
+import { WEAPONS } from './weapons'
+import { WEAPON_TYPES, weaponTypeLabel } from './types'
+import { ROLES, weaponRole, type Role } from './roles'
+import { FIGHT_FILTERS, type FightFilter } from './useMeta'
 import {
   MIN_BRACKET_FIGHTS,
   MIN_FIGHTS,
@@ -13,14 +13,14 @@ import {
   weaponRow,
   type WeaponRow,
   type SortMode,
-} from '../buildguide/loadouts'
-import { useCommunityPicks, useMeta } from '../useMeta'
-import { WeaponDetail } from './BuildGuideDetail'
-import { trendOf } from '../buildguide/insights'
-import { SetStrip } from '../components/SetStrip'
+} from './loadouts'
+import { useCommunityPicks, useMeta } from './useMeta'
+import { WeaponDetail } from './WeaponDetail'
+import { trendOf } from './insights'
+import { SetStrip } from './SetStrip'
 import { HowItWorks, MoreOptions } from '../components/MoreOptions'
-import { useStoredState, withDefaults } from '../useStoredState'
-import { formatAge, formatPercent } from '../format'
+import { useStoredState, withDefaults } from '../hooks/useStoredState'
+import { formatAge, formatPercent } from '../lib/format'
 
 interface BuildGuideSettings {
   role: Role

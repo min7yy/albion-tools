@@ -4,7 +4,7 @@ import type { SalesLookup } from '../api/history'
 import { RESOURCE_ITEMS, flipItemsFor } from './items'
 import { flipMarketsFor } from './markets'
 import type { Price } from '../api/prices'
-import type { PriceLookup, TradeSettings } from '../profit'
+import type { PriceLookup, TradeSettings } from '../lib/profit'
 
 const NOW = new Date('2026-10-07T12:00:00Z').getTime()
 const recent = new Date(NOW - 3600_000)

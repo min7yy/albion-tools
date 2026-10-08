@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildShareUrl, decodeFilters, encodeFilters, parseHash } from './shareLink'
-import { DEFAULT_FILTERS, type RefiningFilters } from './refining/rank'
+import { DEFAULT_FILTERS, type RefiningFilters } from '../refining/rank'
 
 describe('share links', () => {
   const filters: RefiningFilters = { ...DEFAULT_FILTERS, resource: 'ore', tier: 5, maxAgeHours: null, hideIncomplete: false }

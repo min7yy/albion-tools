@@ -1,5 +1,5 @@
-import { DEFAULT_SERVER, isServerId, type ServerId } from './api/servers'
-import { OPENED_WITH } from './shareLink'
+import { DEFAULT_SERVER, isServerId, type ServerId } from '../api/servers'
+import { OPENED_WITH } from '../lib/shareLink'
 import { useStoredState } from './useStoredState'
 
 /** The selected game server, remembered between visits. A share link's server wins. */

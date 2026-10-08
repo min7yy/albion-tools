@@ -1,6 +1,6 @@
-import type { Spell } from '../buildguide/spells'
-import { formatPercent } from '../format'
-import { Tooltip } from './Tooltip'
+import type { Spell } from './spells'
+import { formatPercent } from '../lib/format'
+import { Tooltip } from '../components/Tooltip'
 
 /** A skill icon from the official render service with a hover card: name, cost, cooldown and description. */
 export function SpellIcon({ spell, picked, size = 32, top = false }: { spell: Spell; picked: number | null; size?: number; top?: boolean }) {

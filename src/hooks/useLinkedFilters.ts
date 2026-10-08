@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useStoredState, withDefaults } from './useStoredState'
-import { decodeFilters, markLinkUsed, openedParams } from './shareLink'
+import { decodeFilters, markLinkUsed, openedParams } from '../lib/shareLink'
 
 /**
  * Filters remembered between visits, except that a share link for this page

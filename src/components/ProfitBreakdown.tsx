@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import type { ProfitResult, TradeMode } from '../profit'
-import { formatAge, formatPercent, formatSilver } from '../format'
+import type { ProfitResult, TradeMode } from '../lib/profit'
+import { formatAge, formatPercent, formatSilver } from '../lib/format'
 
 interface Props {
   result: ProfitResult

@@ -12,7 +12,7 @@ import {
 } from './rank'
 import { DEFAULT_SETTINGS } from '../refining/settings'
 import type { Price } from '../api/prices'
-import type { PriceLookup } from '../profit'
+import type { PriceLookup } from '../lib/profit'
 
 const NOW = new Date('2026-10-07T12:00:00Z').getTime()
 

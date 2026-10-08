@@ -1,4 +1,4 @@
-import { BASE_CITY_BONUS, FOCUS_BONUS, evaluateProfit, returnRateForBonus, stationFeeForValue, type PriceLookup, type ProfitResult } from '../profit'
+import { BASE_CITY_BONUS, FOCUS_BONUS, evaluateProfit, returnRateForBonus, stationFeeForValue, type PriceLookup, type ProfitResult } from '../lib/profit'
 import type { RefiningSettings } from '../refining/settings'
 import { CITY_CRAFTING_BONUSES, type CraftRecipe } from './data'
 
