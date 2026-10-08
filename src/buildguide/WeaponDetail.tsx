@@ -135,14 +135,14 @@ export function WeaponDetail({ row: r, summary, community }: { row: WeaponRow; s
       <p className="hint skills-note">
         {community
           ? 'The skill community builds on Albion Free Market pick most for each key (the killboard doesn’t record skills). Hover or tap one for what it does.'
-          : 'Hover or tap a skill for what it does.'}
+          : 'Community skill picks haven’t loaded or aren’t published yet, so every option shows. Hover or tap one for what it does.'}
       </p>
       <div className="skills">
         <Skills base={r.weapon.base} name={r.weapon.name} slot="MainHand" community={community} all={allSkills} />
         {r.best?.gear.map((g) => <Skills key={g.slot} base={g.base} name={g.name} slot={g.slot} community={community} all={allSkills} />)}
       </div>
 
-      {consumables.some((c) => c.kills || c.picked) && (
+      {consumables.some((c) => c.kills || c.picked) ? (
         <>
           <h4 className="detail-head">Recommended consumables</h4>
           <div className="worn-grid">
@@ -161,6 +161,14 @@ export function WeaponDetail({ row: r, summary, community }: { row: WeaponRow; s
               ) : null,
             )}
           </div>
+        </>
+      ) : (
+        <>
+          <h4 className="detail-head">Recommended consumables</h4>
+          <p className="hint">
+            No potions or food recorded for this weapon yet. Kills record them from 8 October onward, so this fills in as
+            new kills come in.
+          </p>
         </>
       )}
 
@@ -183,16 +191,16 @@ export function WeaponDetail({ row: r, summary, community }: { row: WeaponRow; s
                 </div>
               ) : null
             })}
-            {mounts.length > 0 && (
-              <div className="worn-slot">
-                <span className="slot">Mount</span>
-                <span className="worn-items">
-                  {mounts.map((m) => (
-                    <ItemChip key={m.icon} icon={m.icon} name={m.name} share={m.share} note="of kills" />
-                  ))}
-                </span>
-              </div>
-            )}
+            <div className="worn-slot">
+              <span className="slot">Mount</span>
+              <span className="worn-items">
+                {mounts.length ? (
+                  mounts.map((m) => <ItemChip key={m.icon} icon={m.icon} name={m.name} share={m.share} note="of kills" />)
+                ) : (
+                  <small className="muted">None recorded yet; kills record mounts from 8 October onward</small>
+                )}
+              </span>
+            </div>
           </div>
         </>
       )}
