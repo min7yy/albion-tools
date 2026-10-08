@@ -1,8 +1,22 @@
 import { useEffect, useState } from 'react'
-import type { MetaSummary } from './meta/aggregate'
-import { COMMUNITY_URL, metaUrl } from './buildguide/meta'
-import type { CommunityPicks } from './meta/community'
-import type { ServerId } from './api/servers'
+import type { FightSize, MetaSummary } from '../meta/aggregate'
+import type { CommunityPicks } from '../meta/community'
+
+export type FightFilter = 'all' | FightSize
+
+export const FIGHT_FILTERS: { id: FightFilter; label: string }[] = [
+  { id: 'all', label: 'All fights' },
+  { id: 's', label: 'Solo' },
+  { id: 'm', label: 'Small group (2–5)' },
+  { id: 'l', label: 'Large (6+)' },
+]
+
+/** Kill data per server, published by .github/workflows/meta.yml. */
+const metaUrl = (server: string) => `https://raw.githubusercontent.com/min7yy/albion-tools/meta-data/${server}.json`
+
+/** Skill picks from community builds, refreshed daily by the same workflow. */
+const COMMUNITY_URL = 'https://raw.githubusercontent.com/min7yy/albion-tools/meta-data/community.json'
+import type { ServerId } from '../api/servers'
 
 interface MetaState {
   summary: MetaSummary | null

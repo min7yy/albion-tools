@@ -18,11 +18,6 @@
   --selected: rgba(240, 160, 80, 0.09);
   --radius: 12px;
   --radius-sm: 8px;
-  /* Item quality frames in game: stone, iron, bronze, silver, gold. */
-  --q-good: #9fb4c8;
-  --q-outstanding: #d4925a;
-  --q-excellent: #dfe3ea;
-  --q-masterpiece: #f2c94c;
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
   line-height: 1.45;
@@ -99,11 +94,6 @@ label.check { flex-direction: row; align-items: center; gap: 9px; color: var(--t
 details.how { margin: 16px 0 0; padding-top: 12px; border-top: 1px solid var(--border); }
 details.how > summary { display: inline-flex; gap: 8px; cursor: pointer; list-style: none; color: var(--muted); font-size: 0.8rem; }
 details.how .hint { color: var(--faint); line-height: 1.55; margin-top: 8px; }
-.budget-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-bottom: 14px; }
-.budget-row input[type='range'] { flex: 1 1 220px; }
-.budget-input { display: inline-flex; align-items: baseline; gap: 6px; }
-.budget-input input { width: 9.5em; font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; padding: 4px 10px; }
-.budget-input small { font-size: 0.8rem; color: var(--muted); }
 .error { color: var(--error); }
 .muted { color: var(--muted); }
 .pos { color: var(--positive); }
@@ -127,17 +117,12 @@ table.ranked tbody tr.selected { background: var(--selected); box-shadow: inset 
 .badge { margin-left: 6px; font-size: 0.68rem; font-weight: 500; padding: 2px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
 .tag-2h { margin-left: 6px; font-size: 0.65rem; font-weight: 600; color: var(--faint); letter-spacing: 0.04em; }
 
-/* Enchantment and quality */
+/* Enchantment */
 .ench { font-variant-numeric: tabular-nums; font-weight: 600; }
 .ench.e1 { color: #4fd18b; }
 .ench.e2 { color: #5aa9ff; }
 .ench.e3 { color: #b98cff; }
 .ench.e4 { color: #f2c94c; }
-.quality { margin-left: 8px; font-size: 0.68rem; font-weight: 500; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; }
-.quality.q2 { color: var(--q-good); background: rgba(159, 180, 200, 0.08); border-color: rgba(159, 180, 200, 0.3); }
-.quality.q3 { color: var(--q-outstanding); background: rgba(212, 146, 90, 0.1); border-color: rgba(212, 146, 90, 0.35); }
-.quality.q4 { color: var(--q-excellent); background: rgba(223, 227, 234, 0.08); border-color: rgba(223, 227, 234, 0.35); }
-.quality.q5 { color: var(--q-masterpiece); background: rgba(242, 201, 76, 0.1); border-color: rgba(242, 201, 76, 0.45); }
 
 /* Detail panel */
 .detail { position: sticky; top: 76px; background: var(--surface-2); }
@@ -170,10 +155,6 @@ table.breakdown.set td { vertical-align: middle; }
 .slot { display: block; font-size: 0.65rem; color: var(--faint); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
 .option-group .segmented { display: inline-flex; }
 .segmented button { white-space: nowrap; }
-tr.clickable { cursor: pointer; }
-tr.clickable:hover { background: var(--hover); }
-tr.ladder-row > td { padding: 0 0 8px 12px; }
-table.breakdown.ladder td { padding: 5px 0; font-size: 0.8rem; }
 
 /* Build guide: build cards */
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -204,16 +185,6 @@ table.breakdown.ladder td { padding: 5px 0; font-size: 0.8rem; }
 .type-chips button { font-size: 0.8rem; padding: 3px 10px; }
 .tag-avg { font-size: 0.7rem; color: var(--muted); font-style: italic; }
 .show-more { display: block; margin: 12px auto 0; }
-.build-card.unpriced { opacity: 0.6; }
-.build-card.unpriced .build-head { cursor: default; }
-.build-card.unpriced .build-head:hover { background: none; }
-.help-steps { margin: 8px 0 12px; padding-left: 20px; color: var(--muted); line-height: 1.55; font-size: 0.85rem; }
-.help-steps code { font-size: 0.8rem; }
-.needed-prices { margin: 6px 0 0; padding-left: 18px; color: var(--muted); line-height: 1.55; font-size: 0.85rem; overflow-wrap: anywhere; }
-table.breakdown td.num .tag-avg { display: block; font-size: 0.75rem; }
-@media (max-width: 520px) {
-  table.breakdown.set .quality { display: block; width: fit-content; margin-top: 3px; }
-}
 
 /* Build guide: weapon detail */
 .tag-trend { font-size: 0.7rem; font-weight: 600; white-space: nowrap; }
@@ -222,7 +193,7 @@ table.breakdown td.num .tag-avg { display: block; font-size: 0.75rem; }
 .detail-head { margin: 14px 0 6px; font-size: 0.7rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 table.breakdown.ladder-sets td { vertical-align: middle; padding: 5px 0; }
 table.breakdown.ladder-sets td.ip-label { white-space: nowrap; padding-right: 12px; color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
-table.breakdown.ladder-sets .build-strip { gap: 3px; }
+table.breakdown.ladder-sets .build-strip { gap: 3px; flex-wrap: nowrap; }
 table.breakdown.ladder-sets td.num small { display: block; }
 .skills-note { margin: 0 0 6px; font-size: 0.8rem; }
 .skills { display: grid; gap: 8px; }
@@ -256,4 +227,3 @@ table.breakdown.ladder-sets td.num small { display: block; }
 .tip-title { font-size: 0.85rem; }
 .tip-meta { color: var(--muted); font-size: 0.75rem; }
 .tip-desc { white-space: pre-line; color: var(--text); }
-table.breakdown.ladder-sets .build-strip { flex-wrap: nowrap; }

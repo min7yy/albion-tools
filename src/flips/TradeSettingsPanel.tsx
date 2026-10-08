@@ -1,4 +1,4 @@
-import type { TradeMode, TradeSettings } from '../profit'
+import type { TradeMode, TradeSettings } from '../lib/profit'
 
 interface Props {
   settings: TradeSettings

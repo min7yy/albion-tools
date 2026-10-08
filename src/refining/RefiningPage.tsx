@@ -2,22 +2,22 @@ import { useMemo, useState } from 'react'
 import type { ServerId } from '../api/servers'
 import { ROYAL_CITIES } from '../api/cities'
 import { indexPrices } from '../api/prices'
-import { allRecipes, allRefiningItemIds } from '../refining/recipes'
-import { DEFAULT_SETTINGS, type RefiningSettings } from '../refining/settings'
-import { DEFAULT_FILTERS, evaluateAll, rankResults, resultKey } from '../refining/rank'
+import { allRecipes, allRefiningItemIds } from './recipes'
+import { DEFAULT_SETTINGS, type RefiningSettings } from './settings'
+import { DEFAULT_FILTERS, evaluateAll, rankResults, resultKey } from './rank'
 import { SettingsPanel } from '../components/SettingsPanel'
-import { FiltersBar } from '../components/FiltersBar'
-import { RefiningTable } from '../components/RefiningTable'
-import { RefiningDetail } from '../components/RefiningDetail'
-import { usePrices } from '../usePrices'
-import { useSalesVolume } from '../useSalesVolume'
-import { useStoredState, withDefaults } from '../useStoredState'
-import { formatAge } from '../format'
-import { useLinkedFilters } from '../useLinkedFilters'
-import { buildShareUrl, encodeFilters } from '../shareLink'
+import { RefiningFiltersBar } from './RefiningFiltersBar'
+import { RefiningTable } from './RefiningTable'
+import { RefiningDetail } from './RefiningDetail'
+import { usePrices } from '../hooks/usePrices'
+import { useSalesVolume } from '../hooks/useSalesVolume'
+import { useStoredState, withDefaults } from '../hooks/useStoredState'
+import { formatAge } from '../lib/format'
+import { useLinkedFilters } from '../hooks/useLinkedFilters'
+import { buildShareUrl, encodeFilters } from '../lib/shareLink'
 import { ShareButton } from '../components/ShareButton'
 import { HowItWorks, MoreOptions } from '../components/MoreOptions'
-import { ageSummary, joinSummary, salesSummary, tradeSummary } from '../optionsSummary'
+import { ageSummary, joinSummary, salesSummary, tradeSummary } from '../lib/optionsSummary'
 
 const RECIPES = allRecipes()
 const ITEM_IDS = allRefiningItemIds(RECIPES)
@@ -51,7 +51,7 @@ export default function RefiningPage({ server }: { server: ServerId }) {
   return (
     <main className="panel">
       <div className="toolbar">
-        <FiltersBar part="main" filters={filters} onChange={setFilters} />
+        <RefiningFiltersBar part="main" filters={filters} onChange={setFilters} />
         <div className="refresh">
           <span className="hint">
             {loading ? 'Loading prices…' : fetchedAt ? `Prices loaded ${formatAge(fetchedAt)}` : ''}
@@ -83,7 +83,7 @@ export default function RefiningPage({ server }: { server: ServerId }) {
           salesSummary(filters.minDailySales),
         ])}
       >
-        <FiltersBar part="more" filters={filters} onChange={setFilters} />
+        <RefiningFiltersBar part="more" filters={filters} onChange={setFilters} />
         <SettingsPanel settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} />
       </MoreOptions>
       {error && <p className="error">{error}</p>}

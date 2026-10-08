@@ -1,9 +1,9 @@
 import { RESOURCES } from '../api/items'
-import { REFINING_SPECIALTY } from '../refining/settings'
-import { resultKey } from '../refining/rank'
-import type { RefiningResult } from '../refining/profit'
+import { REFINING_SPECIALTY } from './settings'
+import { resultKey } from './rank'
+import type { RefiningResult } from './profit'
 import type { SalesLookup } from '../api/history'
-import { formatAge, formatPercent, formatPerDay, formatPerFocus, formatSilver, tierLabel } from '../format'
+import { formatAge, formatPercent, formatPerDay, formatPerFocus, formatSilver, tierLabel } from '../lib/format'
 
 interface Props {
   rows: RefiningResult[]

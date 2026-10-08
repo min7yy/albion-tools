@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
-import { fetchSalesVolume, type SalesLookup } from './api/history'
-import type { ServerId } from './api/servers'
+import { fetchSalesVolume, type SalesLookup } from '../api/history'
+import type { ServerId } from '../api/servers'
 import { useKeyedFetch } from './useKeyedFetch'
 
 /** Daily sales volume for items in cities; `sales` is undefined until it has loaded. */

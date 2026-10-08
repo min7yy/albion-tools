@@ -1,4 +1,4 @@
-import type { Price } from './api/prices'
+import type { Price } from '../api/prices'
 
 export type TradeMode = 'instant' | 'order'
 

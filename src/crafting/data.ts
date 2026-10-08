@@ -1,6 +1,6 @@
 import data from '../data/crafting.json'
 import { itemName } from '../api/items'
-import { tierLabel } from '../format'
+import { tierLabel } from '../lib/format'
 
 /** One crafting recipe as stored in src/data/crafting.json (see scripts/build-crafting-data.mjs). */
 export interface CraftRecipe {

@@ -6,10 +6,10 @@ import {
   returnRateForBonus,
   stationFeeForValue,
   type TradeSettings,
-} from '../profit'
+} from '../lib/profit'
 
-export type { TradeMode } from '../profit'
-export { BASE_CITY_BONUS, FOCUS_BONUS } from '../profit'
+export type { TradeMode } from '../lib/profit'
+export { BASE_CITY_BONUS, FOCUS_BONUS } from '../lib/profit'
 
 export interface RefiningSettings extends TradeSettings {
   /** Refine with focus (adds a large production bonus). */

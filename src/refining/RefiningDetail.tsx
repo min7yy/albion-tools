@@ -1,9 +1,9 @@
 import { itemName } from '../api/items'
-import type { RefiningResult } from '../refining/profit'
-import type { RefiningSettings } from '../refining/settings'
+import type { RefiningResult } from './profit'
+import type { RefiningSettings } from './settings'
 import type { SalesVolume } from '../api/history'
-import { formatPerDay, formatPerFocus, formatSilver } from '../format'
-import { ProfitBreakdown } from './ProfitBreakdown'
+import { formatPerDay, formatPerFocus, formatSilver } from '../lib/format'
+import { ProfitBreakdown } from '../components/ProfitBreakdown'
 
 interface Props {
   result: RefiningResult

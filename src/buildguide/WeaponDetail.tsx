@@ -1,13 +1,13 @@
 import type { MetaSummary } from '../meta/aggregate'
 import type { CommunityPicks } from '../meta/community'
-import { iconId, SLOT_LABELS } from '../buildguide/gear'
-import { alternatives, type WeaponRow } from '../buildguide/loadouts'
-import { communityBuilds, KEY_LABELS, spellOptions } from '../buildguide/spells'
-import { areaLabel, areasOf, extrasOf, matchupsOf, performanceOf, type Matchup } from '../buildguide/insights'
+import { iconId, SLOT_LABELS } from './gear'
+import { alternatives, type WeaponRow } from './loadouts'
+import { communityBuilds, KEY_LABELS, spellOptions } from './spells'
+import { areaLabel, areasOf, extrasOf, matchupsOf, performanceOf, type Matchup } from './insights'
 import { ItemIcon } from '../components/ItemIcon'
-import { SpellIcon } from '../components/SpellIcon'
-import { formatPercent } from '../format'
-import { SetStrip } from '../components/SetStrip'
+import { SpellIcon } from './SpellIcon'
+import { formatPercent } from '../lib/format'
+import { SetStrip } from './SetStrip'
 
 const FIGHT_LABELS = { s: 'Solo', m: 'Small group', l: 'Large' } as const
 

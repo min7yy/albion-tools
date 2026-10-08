@@ -1,4 +1,4 @@
-import type { PriceLookup } from '../profit'
+import type { PriceLookup } from '../lib/profit'
 import type { Price } from '../api/prices'
 import type { CraftRecipe } from './data'
 import { BLACK_MARKET, evaluateCrafting, type CraftingResult, type CraftingSettings } from './evaluate'

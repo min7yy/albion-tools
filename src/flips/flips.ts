@@ -1,5 +1,5 @@
 import type { SalesLookup } from '../api/history'
-import { ORDER_SETUP_FEE, SALES_TAX_NO_PREMIUM, SALES_TAX_PREMIUM, type PriceLookup, type TradeSettings } from '../profit'
+import { ORDER_SETUP_FEE, SALES_TAX_NO_PREMIUM, SALES_TAX_PREMIUM, type PriceLookup, type TradeSettings } from '../lib/profit'
 
 export const BLACK_MARKET = 'Black Market'
 

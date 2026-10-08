@@ -68,7 +68,7 @@ export interface WeaponRow {
   brackets: BracketRow[]
 }
 
-export function averageIp(stats: WeaponStats, filter: StatsFilter): number | null {
+function averageIp(stats: WeaponStats, filter: StatsFilter): number | null {
   let sum = 0
   let n = 0
   for (const [key, [w, l]] of Object.entries(stats)) {
@@ -91,7 +91,7 @@ function setRow(gear: Gear[], stats: WeaponStats, filter: StatsFilter, usual: bo
  * A weapon's recorded loadouts with an item in every slot. Loadouts with an empty slot or an
  * item we have no data for (event skins, for example) are left out.
  */
-export function completeSets(weapon: Weapon, summary: MetaSummary): { gear: Gear[]; stats: WeaponStats }[] {
+function completeSets(weapon: Weapon, summary: MetaSummary): { gear: Gear[]; stats: WeaponStats }[] {
   const out: { gear: Gear[]; stats: WeaponStats }[] = []
   for (const [bases, stats] of summary.weapons[weapon.base]?.builds ?? []) {
     const gear: Gear[] = []
@@ -108,7 +108,7 @@ export function completeSets(weapon: Weapon, summary: MetaSummary): { gear: Gear
 }
 
 /** The loadout with the best (shrunk) win rate among those with at least `min` fights. */
-export function bestSet(weapon: Weapon, summary: MetaSummary, filter: StatsFilter, min: number): SetRow | null {
+function bestSet(weapon: Weapon, summary: MetaSummary, filter: StatsFilter, min: number): SetRow | null {
   let best: SetRow | null = null
   for (const { gear, stats } of completeSets(weapon, summary)) {
     const r = setRow(gear, stats, filter, false)
@@ -132,7 +132,7 @@ export function weaponRow(weapon: Weapon, summary: MetaSummary, size: FightSize 
   for (const s of FIGHT_SIZES) bySize[s] = filterStats(stats, { ...filter, size: s })
   const best =
     bestSet(weapon, summary, filter, MIN_FIGHTS) ??
-    setRow(usualGear(weapon, summary, 1).map((slot) => slot[0]), stats, filter, true)
+    setRow(usualGear(weapon, summary), stats, filter, true)
   const brackets = IP_BRACKETS.map((bracket): BracketRow => {
     const inBracket = { size, itemPower: bracket }
     const [w, l] = filterStats(stats, inBracket)

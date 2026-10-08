@@ -1,15 +1,15 @@
 import { Suspense, useEffect } from 'react'
 import { SERVERS } from './api/servers'
-import { useServer } from './useServer'
-import { useHashRoute } from './useHashRoute'
-import RefiningPage from './pages/RefiningPage'
-import { lazyPage } from './lazyPage'
+import { useServer } from './hooks/useServer'
+import { useHashRoute } from './hooks/useHashRoute'
+import RefiningPage from './refining/RefiningPage'
+import { lazyPage } from './lib/lazyPage'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
 // Crafting and flips carry ~6,500 recipes, so they load only when opened.
-const CraftingPage = lazyPage(() => import('./pages/CraftingPage'))
-const FlipsPage = lazyPage(() => import('./pages/FlipsPage'))
-const BuildGuidePage = lazyPage(() => import('./pages/BuildGuidePage'))
+const CraftingPage = lazyPage(() => import('./crafting/CraftingPage'))
+const FlipsPage = lazyPage(() => import('./flips/FlipsPage'))
+const BuildGuidePage = lazyPage(() => import('./buildguide/BuildGuidePage'))
 
 const PAGES = [
   { id: 'refining', label: 'Refining' },

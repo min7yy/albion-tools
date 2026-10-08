@@ -1,6 +1,6 @@
 import { ROYAL_CITIES } from '../api/cities'
 import { RESOURCES, TIERS, ENCHANTMENTS, type ResourceKind } from '../api/items'
-import type { RefiningFilters, SortKey } from '../refining/rank'
+import type { RefiningFilters, SortKey } from './rank'
 
 interface Props {
   filters: RefiningFilters
@@ -29,7 +29,7 @@ function numOrAll(v: string): number | 'all' {
   return v === 'all' ? 'all' : Number(v)
 }
 
-export function FiltersBar({ filters, onChange, part }: Props) {
+export function RefiningFiltersBar({ filters, onChange, part }: Props) {
   const set = <K extends keyof RefiningFilters>(key: K, value: RefiningFilters[K]) =>
     onChange({ ...filters, [key]: value })
 

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ServerId } from '../api/servers'
-import { CRAFT_RECIPES, craftItemName } from '../crafting/data'
-import { BLACK_MARKET, type CraftingSettings } from '../crafting/evaluate'
+import { CRAFT_RECIPES, craftItemName } from './data'
+import { BLACK_MARKET, type CraftingSettings } from './evaluate'
 import {
   DEFAULT_CRAFTING_FILTERS,
   craftingItemIds,
@@ -12,21 +12,21 @@ import {
   qualityLookup,
   rankCrafting,
   recipesFor,
-} from '../crafting/rank'
+} from './rank'
 import { DEFAULT_SETTINGS } from '../refining/settings'
 import { SettingsPanel } from '../components/SettingsPanel'
-import { CraftingFiltersBar } from '../components/CraftingFiltersBar'
-import { CraftingTable } from '../components/CraftingTable'
+import { CraftingFiltersBar } from './CraftingFiltersBar'
+import { CraftingTable } from './CraftingTable'
 import { ProfitBreakdown } from '../components/ProfitBreakdown'
-import { usePrices } from '../usePrices'
-import { useStoredState, withDefaults } from '../useStoredState'
-import { formatAge } from '../format'
-import { useLinkedFilters } from '../useLinkedFilters'
-import { buildShareUrl, encodeFilters } from '../shareLink'
+import { usePrices } from '../hooks/usePrices'
+import { useStoredState, withDefaults } from '../hooks/useStoredState'
+import { formatAge } from '../lib/format'
+import { useLinkedFilters } from '../hooks/useLinkedFilters'
+import { buildShareUrl, encodeFilters } from '../lib/shareLink'
 import { ShareButton } from '../components/ShareButton'
-import { CRAFTING_CITIES, CRAFTING_MARKETS } from './craftingCities'
+import { CRAFTING_CITIES, CRAFTING_MARKETS } from './cities'
 import { HowItWorks, MoreOptions } from '../components/MoreOptions'
-import { ageSummary, joinSummary, tradeSummary } from '../optionsSummary'
+import { ageSummary, joinSummary, tradeSummary } from '../lib/optionsSummary'
 
 const ROW_LIMIT = 200
 const nameOf = craftItemName

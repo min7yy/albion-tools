@@ -1,5 +1,5 @@
-import { fetchPrices, type Price } from './api/prices'
-import type { ServerId } from './api/servers'
+import { fetchPrices, type Price } from '../api/prices'
+import type { ServerId } from '../api/servers'
 import { useKeyedFetch } from './useKeyedFetch'
 
 const NO_PRICES: Price[] = []
