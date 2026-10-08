@@ -1,0 +1,104 @@
+{
+ "files": [
+  "https://albionslayerboard.com/assets/index-CIXoGvrt.js",
+  "https://albionslayerboard.com/assets/Leaderboard-zrTSLY6P.js",
+  "https://albionslayerboard.com/assets/index-CSsshHVA.js",
+  "https://albionslayerboard.com/assets/leaderboardApi-8lwXzoJq.js",
+  "https://albionslayerboard.com/assets/indexer-D33s1tOq.js",
+  "https://albionslayerboard.com/assets/lock-Wmlz0AK9.js",
+  "https://albionslayerboard.com/assets/skull-ByUqFZS7.js",
+  "https://albionslayerboard.com/assets/calendar-C7rSTZcA.js",
+  "https://albionslayerboard.com/assets/proxy-CtI6xdWr.js",
+  "https://albionslayerboard.com/assets/Duels-DMtWEtux.js",
+  "https://albionslayerboard.com/assets/useNearViewport-BD3OD5lv.js",
+  "https://albionslayerboard.com/assets/PlayerInsights-CaMcUlGX.js",
+  "https://albionslayerboard.com/assets/external-link-D7nUteG2.js",
+  "https://albionslayerboard.com/assets/trending-up-DVVGRKKg.js",
+  "https://albionslayerboard.com/assets/index-BoWavtB4.js",
+  "https://albionslayerboard.com/assets/user-BH7g0XN7.js",
+  "https://albionslayerboard.com/assets/BuildsDashboard-DXXQr1Ke.js",
+  "https://albionslayerboard.com/assets/arrow-left-DfvkdDFv.js",
+  "https://albionslayerboard.com/assets/CountersPage-D4epQK6w.js",
+  "https://albionslayerboard.com/assets/counterApi-DvOmhA_v.js",
+  "https://albionslayerboard.com/assets/PlayerInlinePanel-Ci8Kr1b5.js",
+  "https://albionslayerboard.com/assets/copy-D600JKnV.js",
+  "https://albionslayerboard.com/assets/FeedbackButton-BWHTUrWv.js",
+  "https://albionslayerboard.com/assets/DiscordButton-BAc1F-kI.js",
+  "https://albionslayerboard.com/assets/PrivacyPolicy-BYLU9ZPC.js",
+  "https://albionslayerboard.com/assets/PlayerCdModal-CItyEWWK.js"
+ ],
+ "templates": [
+  "/*",
+  "/players/${encodeURIComponent(n)}/kills?limit=${i}&offset=${o}",
+  "/players/${encodeURIComponent(n)}/deaths?limit=${i}&offset=${o}",
+  "/item",
+  "/${f}.png?${m.toString()}",
+  "/${x}.webp?r=${Ly}",
+  "/scene-${I}.mp4",
+  "/poster-1920.webp",
+  "/poster-640.webp 640w, ${tn}/poster-1280.webp 1280w, ${tn}/poster-1920.webp 1920w, ${tn}/poster-3840.webp 3840w",
+  "/${i}/builds/",
+  "/cd/leaderboard?${c.toString()}",
+  "/cd/seasons${n.toString()?",
+  "/cd/leaderboard/status?${c.toString()}",
+  "/cd/players/meta?region=${u}&tier=${t}&ids=${S}${p}",
+  "/cd/leaderboard/meta?region=${u}&tier=${t}&ids=${S}${p}",
+  "/cd/players/${encodeURIComponent(A)}/meta?region=${u}&tier=${t}${p}",
+  "/cd/players/${encodeURIComponent(A)}/summary?region=${u}&tier=${t}${p}",
+  "/cd/players/${encodeURIComponent(r)}/events?${g.toString()}",
+  "/events/${encodeURIComponent(t)}/raw?plain=1",
+  "/events/${encodeURIComponent(t)}/full?region=${encodeURIComponent(r)}",
+  "/players/${encodeURIComponent(e)}/events?${m.toString()}",
+  "/cd/players/${encodeURIComponent(m)}/events/${l}/raw?region=${encodeURIComponent(e.toUpperCase())}",
+  "/albion-${e}/events/${l}",
+  "/duels/underdog?region=${encodeURIComponent(e.toUpperCase())}&limit=5&minIpDiff=${F}",
+  "/duels/juicy?region=${encodeURIComponent(e.toUpperCase())}&limit=5&minTotalValue=500000&sinceDays=7",
+  "/cd/players/${_}/events/${w}/raw?region=${E}",
+  "/albion-${Ie(n)}/events/${w}",
+  "/albion-${Ie(n)}/events/${encodeURIComponent(l)}",
+  "/cd/events/${encodeURIComponent(s)}/exclude"
+ ],
+ "abilityCtx": [
+  "Name:\"text-xs sm:text-sm text-[#A9A092] leading-relaxed mb-6\",children:\"Compare weapon matchups, win rates, and counter abilities such as purge, reflect, and silence.\"}),c.jsxs(\"div\",{className:\"grid grid-cols-3 gap-2.5 text-center\",children:[c.jsxs"
+ ],
+ "dataSrc": [
+  "/i.imgur.com/GPBIcQJ.png\",\"https://i.imgur.com/v21b0NN.png\",\"https://i.imgur.com/vIciY4n.png\"],zn=[\"gameinfo.albiononline.com\",\"gameinfo-ams.albiononline.com\",\"gameinfo-sgp.albiononline.com\",\"render.albiononl",
+  "?null}function Ve(a,s,t){return!s||!t?null:Ge(`/${a}/builds/${s}/${t}/`)}const qe={na:\"https://west.albion-online-data.com\",asia:\"https://east.albion-online-data.com\",eu:\"https://europe.albion-online-data.com\"},$e=[\"Br"
+ ],
+ "GET /": [
+  "404",
+  "{\"ok\":false,\"error\":\"not_found\"}"
+ ],
+ "GET /health": [
+  "200",
+  "{\"ok\":true,\"service\":\"slayerboard-api\",\"ts\":1791439724261,\"uptime_sec\":2243316}"
+ ],
+ "GET /meta": [
+  "404",
+  "{\"ok\":false,\"error\":\"not_found\"}"
+ ],
+ "GET /weapons": [
+  "404",
+  "{\"ok\":false,\"error\":\"not_found\"}"
+ ],
+ "GET /builds": [
+  "404",
+  "{\"ok\":false,\"error\":\"not_found\"}"
+ ],
+ "GET /stats": [
+  "404",
+  "{\"ok\":false,\"error\":\"not_found\"}"
+ ],
+ "GET /leaderboard": [
+  "404",
+  "{\"ok\":false,\"error\":\"not_found\"}"
+ ],
+ "GET /api": [
+  "404",
+  "{\"ok\":false,\"error\":\"not_found\"}"
+ ],
+ "GET /docs": [
+  "404",
+  "{\"ok\":false,\"error\":\"not_found\"}"
+ ]
+}
