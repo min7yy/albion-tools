@@ -14,8 +14,21 @@ jobs:
         with:
           node-version: 22
       - run: |
-          mkdir -p probe8
-          COLLECT_MINUTES=3 node --experimental-strip-types scripts/collect-meta.ts probe8 > probe8/log.txt 2>&1 || true
-          rm -f probe8/*-state.json
+          mkdir -p probe9
+          cat > /tmp/p.mjs <<'JS'
+          const out = []
+          let lastV = '', lastId = ''
+          for (let page = 0; page < 60; page++) {
+            const r = await fetch(`https://api.albionfreemarket.com/be/builds?limit=200&sortBy=upvotes&cursorLastValue=${lastV}&cursorLastId=${lastId}`)
+            const j = await r.json()
+            for (const b of j.builds) out.push([b.weaponItemGroup, b.authorName, b.upvotesCount, b.downvotesCount, b.netVotes, b.createdAt?.slice(0,10), b.updatedAt?.slice(0,10), b.youtubeViews ?? 0,
+              (b.slots ?? []).filter(s => s.slotType === 'mainhand').flatMap(s => (s.mainItemSelection?.selectedSpells ?? []).map(x => x.uniqueName)).join(' ')])
+            if (!j.nextCursor || !j.builds.length) break
+            lastV = encodeURIComponent(String(j.nextCursor.lastValue)); lastId = encodeURIComponent(j.nextCursor.lastId)
+            await new Promise((r) => setTimeout(r, 1500))
+          }
+          console.log(JSON.stringify(out))
+          JS
+          node /tmp/p.mjs > probe9/builds.json 2> probe9/log.txt || true
           git config user.name probe; git config user.email probe@x
-          git add probe8; git commit -m "probe8 output"; git push
+          git add probe9; git commit -m "probe9 output"; git push
