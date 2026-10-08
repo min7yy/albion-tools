@@ -1,0 +1,10 @@
+builds 200 text/html;charset=UTF-8 226815
+builds/browse 200 text/html;charset=UTF-8 174413
+api/builds 200 text/html;charset=UTF-8 174413
+api/v1/builds 200 text/html;charset=UTF-8 174413
+api/builds/search 200 text/html;charset=UTF-8 174413
+build-list 200 text/html;charset=UTF-8 174413
+sitemap.xml 200 text/html;charset=UTF-8 174413
+robots.txt 200 text/plain; charset=utf-8 252
+metabattle 404 30846
+spellicon 200 image/png 43440

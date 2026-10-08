@@ -1,0 +1,12 @@
+User-agent: *
+Disallow: /crafting/*
+Disallow: /transport/*
+Disallow: /itempower/*
+Disallow: /repaircost/*
+Allow: /crafting/$
+Allow: /transport/$
+Allow: /itempower/$
+Allow: /repaircost/$
+Allow: /
+
+Sitemap: https://albionfreemarket.com/sitemap_index.xml
