@@ -248,8 +248,9 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
         without one show the item most often worn with them in each slot, marked usual gear. Best means the highest win
         rate after pulling it toward 50% as if each loadout had {PRIOR_FIGHTS} more fights, so a lucky few don't win. The
         killboard only records fights where someone died, so ganks count as wins: treat win rates as a guide. The killboard
-        doesn't record skills, so the recommended skill on each key is the one community builds on Albion Free Market
-        pick most (every option comes from the game files). Recommended potions and food show what players brought in
+        doesn't record skills, so the recommended skill on each key is the one most picked in Albion Free Market builds
+        that have more upvotes than downvotes and were made or edited in the last year (every option comes from the game
+        files). Recommended potions and food show what players brought in
         kills alongside the community's pick. Rising and falling
         compare a weapon's share of fights over the last two days with the days before. Recommended weighs win rate and
         how much it's played equally. Weapons are grouped by the role they usually play.

@@ -4,6 +4,7 @@
 /** One build as the Free Market API returns it (only the fields read here). */
 export interface CommunityBuild {
   netVotes?: number
+  updatedAt?: string
   slots?: {
     slotType: string
     mainItemSelection?: { itemUniqueName?: string; selectedSpells?: { uniqueName: string }[] }
@@ -12,7 +13,14 @@ export interface CommunityBuild {
 
 /** items[item base] = [builds that use the item, picks per spell]. */
 /** Bumped when the file gains fields, so the collector refreshes it straight away. */
-export const COMMUNITY_VERSION = 2
+export const COMMUNITY_VERSION = 3
+
+/**
+ * Builds counted: at least this many more upvotes than downvotes, and created or edited within
+ * MAX_AGE_DAYS, so untested and pre-patch builds drop out. Only about 1 in 9 builds has any vote.
+ */
+export const MIN_NET_VOTES = 1
+export const MAX_AGE_DAYS = 365
 
 export interface CommunityPicks {
   version?: number
@@ -34,13 +42,14 @@ const CONSUMABLE_SLOTS = { potion: 'Potion', food: 'Food' } as const
 
 const base = (type: string) => type.replace(/^T\d+_/, '').replace(/@\d+$/, '')
 
-/** Counts which spells each item is built with. Builds voted below zero are left out. */
+/** Counts which spells each item is built with, in upvoted builds edited within MAX_AGE_DAYS. */
 export function countPicks(builds: CommunityBuild[], now: Date): CommunityPicks {
   const items: CommunityPicks['items'] = {}
   const consumables: Record<string, Consumables> = {}
   let counted = 0
+  const since = new Date(now.getTime() - MAX_AGE_DAYS * 86_400_000).toISOString()
   for (const build of builds) {
-    if ((build.netVotes ?? 0) < 0) continue
+    if ((build.netVotes ?? 0) < MIN_NET_VOTES || !build.updatedAt || build.updatedAt < since) continue
     counted++
     const main = build.slots?.find((s) => s.slotType === 'mainhand')?.mainItemSelection?.itemUniqueName
     if (main) {

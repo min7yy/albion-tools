@@ -27,7 +27,7 @@ function Skills({ base, name, slot, community, all }: { base: string; name: stri
         <ItemIcon id={iconId(base)} size={28} />
         <span>
           {name}
-          {community && <small className="muted">{builds ? `${builds} community builds` : 'no community builds, all options'}</small>}
+          {community && <small className="muted">{builds ? `${builds} upvoted build${builds === 1 ? '' : 's'}` : 'no upvoted builds, all options'}</small>}
         </span>
       </span>
       <span className="skill-groups">
@@ -113,7 +113,7 @@ export function WeaponDetail({ row: r, summary, community }: { row: WeaponRow; s
       </div>
       <p className="hint skills-note">
         {community
-          ? 'The skill community builds on Albion Free Market pick most for each key (the killboard doesn’t record skills). Hover or tap one for what it does.'
+          ? 'The skill most picked on each key in upvoted Albion Free Market builds from the last year (the killboard doesn’t record skills). Hover or tap one for what it does.'
           : 'Community skill picks haven’t loaded or aren’t published yet, so every option shows. Hover or tap one for what it does.'}
       </p>
       <div className="skills">
