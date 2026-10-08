@@ -3,7 +3,8 @@ import type { MetaSummary } from '../meta/aggregate'
 import type { CommunityPicks } from '../meta/community'
 import { iconId, SLOT_LABELS } from './gear'
 import { alternatives, type WeaponRow } from './loadouts'
-import { communityBuilds, KEY_LABELS, spellOptions } from './spells'
+import { communityBuilds, KEY_LABELS, KIND_LABELS, spellOptions } from './spells'
+import { guideFor, summarize } from './guide'
 import { communityConsumable, extrasOf } from './insights'
 import { ItemIcon } from '../components/ItemIcon'
 import { SpellIcon } from './SpellIcon'
@@ -27,7 +28,7 @@ function Skills({ base, name, slot, community, all }: { base: string; name: stri
         <ItemIcon id={iconId(base)} size={28} />
         <span>
           {name}
-          {community && <small className="muted">{builds ? `${builds} upvoted build${builds === 1 ? '' : 's'}` : 'no upvoted builds, all options'}</small>}
+          {community && <small className="muted">{builds ? `${builds} upvoted builds` : 'too few upvoted builds, all options'}</small>}
         </span>
       </span>
       <span className="skill-groups">
@@ -68,9 +69,17 @@ export function WeaponDetail({ row: r, summary, community }: { row: WeaponRow; s
     picked: communityConsumable(r.weapon.base, community, slot),
   }))
   const mounts = extrasOf(w, 'Mount', 2)
+  const guide = guideFor(r, community)
 
   return (
     <div className="build-body">
+      <h4 className="detail-head">How to play</h4>
+      <div className="guide">
+        {guide.lines.map((l) => (
+          <p key={l}>{l}</p>
+        ))}
+      </div>
+
       <h4 className="detail-head">Best set by item power</h4>
       {brackets.length ? (
         <table className="breakdown ladder-sets">
@@ -106,20 +115,57 @@ export function WeaponDetail({ row: r, summary, community }: { row: WeaponRow; s
       )}
 
       <div className="detail-head-row">
-        <h4 className="detail-head">{allSkills ? 'All skills' : 'Recommended skills'}</h4>
+        <h4 className="detail-head">{allSkills ? 'All skill options' : 'How to use each piece'}</h4>
         <button className="link-button" onClick={() => setAllSkills(!allSkills)}>
           {allSkills ? 'Show recommended only' : 'Show all options'}
         </button>
       </div>
       <p className="hint skills-note">
         {community
-          ? 'The skill most picked on each key in upvoted Albion Free Market builds from the last year (the killboard doesn’t record skills). Hover or tap one for what it does.'
+          ? 'Skills are the ones most picked in upvoted Albion Free Market builds from the last year, as the killboard doesn’t record skills. Descriptions come from the game files. Hover or tap an icon for the full tooltip.'
           : 'Community skill picks haven’t loaded or aren’t published yet, so every option shows. Hover or tap one for what it does.'}
       </p>
-      <div className="skills">
-        <Skills base={r.weapon.base} name={r.weapon.name} slot="MainHand" community={community} all={allSkills} />
-        {r.best?.gear.map((g) => <Skills key={g.slot} base={g.base} name={g.name} slot={g.slot} community={community} all={allSkills} />)}
-      </div>
+      {allSkills ? (
+        <div className="skills">
+          <Skills base={r.weapon.base} name={r.weapon.name} slot="MainHand" community={community} all />
+          {r.best?.gear.map((g) => <Skills key={g.slot} base={g.base} name={g.name} slot={g.slot} community={community} all />)}
+        </div>
+      ) : (
+        <div className="pieces">
+          {guide.pieces.map((p) => (
+            <div key={p.slot} className="piece">
+              <span className="item-cell piece-item">
+                <ItemIcon id={iconId(p.base)} size={32} />
+                <span>
+                  {p.name}
+                  <small className="muted">{SLOT_LABELS[p.slot]}</small>
+                </span>
+              </span>
+              <ul className="piece-skills">
+                {p.skills.map((sk) => (
+                  <li key={sk.key}>
+                    <SpellIcon spell={sk.spell} picked={sk.picked < 1 ? sk.picked : null} size={26} />
+                    <span>
+                      <strong>
+                        <span className="skill-key">{KEY_LABELS[sk.key]}</span> {sk.spell.name}
+                      </strong>
+                      {sk.spell.kind && <span className={`kind kind-${sk.spell.kind}`}>{KIND_LABELS[sk.spell.kind]}</span>}
+                      {sk.spell.cd && <small className="muted"> {sk.spell.cd}s</small>}
+                      <span className="piece-desc">{summarize(sk.spell.desc)}</span>
+                    </span>
+                  </li>
+                ))}
+                {p.open.map((o) => (
+                  <li key={o.key} className="piece-open">
+                    <span className="skill-key">{KEY_LABELS[o.key]}</span>
+                    <span className="hint">No clear pick yet: {o.options.map((sp) => sp.name).join(', ')}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
 
       {consumables.some((c) => c.kills || c.picked) ? (
         <>

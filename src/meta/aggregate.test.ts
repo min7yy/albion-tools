@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addEvents, emptyState, fightSize, isWeapon, itemBase, pruneState, summarize, type DayStats, type KillEvent } from './aggregate'
+import { SEEN_IDS, addEvents, emptyState, fightSize, isWeapon, itemBase, pruneState, summarize, type DayStats, type KillEvent } from './aggregate'
 
 function player(id: string, main: string | null, gear: Record<string, string> = {}) {
   const equipment: Record<string, { Type: string } | null> = { MainHand: main ? { Type: main } : null }
@@ -57,11 +57,26 @@ describe('addEvents', () => {
     expect(state.days['2026-10-07'].weapons.MAIN_FIRESTAFF.m).toEqual([1, 0])
   })
 
-  it('keeps counting older pages within one run', () => {
+  it('counts kills the feed lists late, below ids already seen', () => {
     const state = emptyState()
-    addEvents(state, [kill(20, '2026-10-07T09:00:00Z', [fire], sickle)], 0)
-    expect(addEvents(state, [kill(19, '2026-10-07T08:59:00Z', [fire], sickle)], 0)).toBe(1)
+    addEvents(state, [kill(20, '2026-10-07T09:00:00Z', [fire], sickle)])
+    expect(addEvents(state, [kill(19, '2026-10-07T08:59:00Z', [fire], sickle)])).toBe(1)
+    expect(addEvents(state, [kill(19, '2026-10-07T08:59:00Z', [fire], sickle)])).toBe(0)
     expect(state.lastEventId).toBe(20)
+  })
+
+  it('remembers only the newest SEEN_IDS ids', () => {
+    const state = emptyState()
+    const events = Array.from({ length: SEEN_IDS + 5 }, (_, i) => kill(i + 1, '2026-10-07T09:00:00Z', [fire], sickle))
+    addEvents(state, events)
+    expect(state.seenIds!.length).toBe(SEEN_IDS)
+    expect(state.seenIds![0]).toBe(6)
+    expect(addEvents(state, [events[SEEN_IDS + 4]])).toBe(0)
+  })
+
+  it('keeps the old cutoff for state saved before ids were remembered', () => {
+    const state = { ...emptyState(), lastEventId: 50, seenFloor: 50 }
+    expect(addEvents(state, [kill(49, '2026-10-07T09:00:00Z', [fire], sickle), kill(51, '2026-10-07T09:00:00Z', [fire], sickle)])).toBe(1)
   })
 
   it('skips players with no weapon', () => {

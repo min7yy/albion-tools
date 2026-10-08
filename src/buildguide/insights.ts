@@ -1,6 +1,6 @@
 import type { ExtraSlot, MetaSummary, WeaponSummary } from '../meta/aggregate'
 import type { CommunityPicks } from '../meta/community'
-import { extraItem } from './spells'
+import { extraItem, MIN_COMMUNITY_BUILDS } from './spells'
 
 /** Fights a weapon needs over the window before it's called rising or falling. */
 export const TREND_MIN_FIGHTS = 30
@@ -53,7 +53,7 @@ export function communityConsumable(
   slot: 'Potion' | 'Food',
 ): { name: string; icon: string; share: number; builds: number } | null {
   const c = community?.consumables?.[weapon]
-  if (!c?.builds) return null
+  if (!c || c.builds < MIN_COMMUNITY_BUILDS) return null
   const [base, n] = Object.entries(c[slot]).sort((a, b) => b[1] - a[1])[0] ?? []
   const item = base ? extraItem(base) : null
   return item && n ? { ...item, share: n / c.builds, builds: c.builds } : null

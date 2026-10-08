@@ -13,6 +13,19 @@ export interface Spell {
   /** Cooldown in seconds. */
   cd?: number
   energy?: number
+  /** What an active skill is for, from the game's tooltip type; passives have none. */
+  kind?: SpellKind
+}
+
+export type SpellKind = 'damage' | 'control' | 'mobility' | 'heal' | 'buff' | 'debuff'
+
+export const KIND_LABELS: Record<SpellKind, string> = {
+  damage: 'Damage',
+  control: 'Crowd control',
+  mobility: 'Mobility',
+  heal: 'Healing',
+  buff: 'Buff',
+  debuff: 'Debuff',
 }
 
 const typed = data as unknown as {
@@ -38,6 +51,9 @@ export interface SpellOption {
   picked: number | null
 }
 
+/** Builds an item or weapon needs before community picks are shown: one build is one person's opinion. */
+export const MIN_COMMUNITY_BUILDS = 2
+
 /** An item's skill options grouped by key, in key order, most picked first within each key. */
 export function spellOptions(base: string, community: CommunityPicks | null): { key: SpellKey; options: SpellOption[] }[] {
   const entries = typed.items[base] ?? []
@@ -48,16 +64,17 @@ export function spellOptions(base: string, community: CommunityPicks | null): { 
     if (!spell) continue
     let group = groups.find((g) => g.key === key)
     if (!group) groups.push((group = { key, options: [] }))
-    const picked = counts && counts[0] > 0 ? (counts[1][id] ?? 0) / counts[0] : null
+    const picked = counts && counts[0] >= MIN_COMMUNITY_BUILDS ? (counts[1][id] ?? 0) / counts[0] : null
     group.options.push({ spell: { id, ...spell }, picked })
   }
   for (const g of groups) g.options.sort((a, b) => (b.picked ?? 0) - (a.picked ?? 0))
   return groups
 }
 
-/** Community builds counted for an item (0 when none use it). */
+/** Community builds counted for an item (0 when fewer than MIN_COMMUNITY_BUILDS use it). */
 export function communityBuilds(base: string, community: CommunityPicks | null): number {
-  return community?.items[base]?.[0] ?? 0
+  const n = community?.items[base]?.[0] ?? 0
+  return n >= MIN_COMMUNITY_BUILDS ? n : 0
 }
 
 /** Name and icon id of a potion, food, mount or bag base, e.g. POTION_HEAL → Major Healing Potion. */

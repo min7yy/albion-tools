@@ -22,7 +22,8 @@ const MAX_OFFSET = 1000
 // Asia alone can log over 1,000 kills in half an hour, more than one pass can page through, so
 // a run keeps polling for COLLECT_MINUTES (0 = a single pass) to catch most of them.
 const COLLECT_MINUTES = Number(process.env.COLLECT_MINUTES ?? 0)
-const POLL_SECONDS = 30
+// A full pass over three servers takes about a minute, so the pause between passes is short.
+const POLL_SECONDS = 10
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
@@ -49,7 +50,10 @@ async function getPage(base: string, offset: number): Promise<KillEvent[] | null
 async function readState(path: string): Promise<MetaState> {
   try {
     const state = JSON.parse(await readFile(path, 'utf8')) as MetaState
-    return state.version === 1 ? state : emptyState()
+    if (state.version !== 1) return emptyState()
+    // Saved before event ids were remembered: everything up to the old cutoff is already counted.
+    if (!state.seenIds) state.seenFloor = state.lastEventId
+    return state
   } catch {
     return emptyState()
   }
@@ -66,11 +70,13 @@ interface RunStatus {
   error?: string
 }
 
-/** One pass over the newest events, newest first, until it reaches the previous pass. */
+/**
+ * One pass over every page the API serves (about 1,000 events). The feed isn't in id order: kills
+ * keep turning up deep in the list minutes after newer ones (in a 15-minute test on 8 October, stopping
+ * at the first already-seen id missed 13–43% of kills), so each pass reads all of it and skips ids
+ * already counted.
+ */
 async function collectPass(base: string, state: MetaState, status: RunStatus): Promise<void> {
-  const lastSeen = state.lastEventId
-  // New kills arrive while we page, pushing events onto the next page, so skip repeats.
-  const seen = new Set<number>()
   for (let offset = 0; offset <= MAX_OFFSET; offset += PAGE) {
     const events = await getPage(base, offset)
     status.pages++
@@ -79,12 +85,8 @@ async function collectPass(base: string, state: MetaState, status: RunStatus): P
       status.newestEventId = events[0].EventId
       status.newestTime = events[0].TimeStamp
     }
-    const fresh = events.filter((e) => !seen.has(e.EventId))
-    for (const e of fresh) seen.add(e.EventId)
-    status.added += addEvents(state, fresh, lastSeen)
-    // Pages run newest first, so stop once we reach events from the previous pass.
-    if (events.some((e) => e.EventId <= lastSeen)) break
-    await sleep(500)
+    status.added += addEvents(state, events)
+    await sleep(300)
   }
 }
 

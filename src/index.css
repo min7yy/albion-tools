@@ -248,3 +248,26 @@ table.breakdown.ladder-sets td.num small { display: block; }
 .item-chip { display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; }
 .item-chip small { display: block; color: var(--muted); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
 .agree { font-size: 0.72rem; }
+
+/* Meta builds: how to play */
+.guide p { margin: 0 0 4px; font-size: 0.85rem; line-height: 1.45; }
+.pieces { display: grid; gap: 10px; }
+.piece { display: grid; grid-template-columns: minmax(150px, 210px) 1fr; gap: 8px 12px; align-items: start; padding-top: 10px; border-top: 1px solid var(--border); }
+.piece:first-child { border-top: none; padding-top: 0; }
+.piece-item { align-items: center; font-size: 0.85rem; }
+.piece-item small { display: block; font-size: 0.7rem; }
+.piece-skills { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.piece-skills li { display: flex; gap: 10px; align-items: flex-start; font-size: 0.82rem; line-height: 1.4; }
+.piece-skills strong { font-weight: 600; margin-right: 6px; }
+.piece-desc { display: block; color: var(--muted); }
+.piece-open { align-items: baseline; }
+.kind { display: inline-block; font-size: 0.65rem; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--muted); vertical-align: 1px; }
+.kind-damage { color: #f2994a; border-color: #f2994a55; }
+.kind-control { color: #bb86fc; border-color: #bb86fc55; }
+.kind-mobility { color: #56ccf2; border-color: #56ccf255; }
+.kind-heal { color: #6fcf97; border-color: #6fcf9755; }
+.kind-buff { color: #f2c94c; border-color: #f2c94c55; }
+.kind-debuff { color: #eb5757; border-color: #eb575755; }
+@media (max-width: 600px) {
+  .piece { grid-template-columns: 1fr; }
+}
