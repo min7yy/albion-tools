@@ -14,7 +14,8 @@ jobs:
         with:
           node-version: 22
       - run: |
-          mkdir -p probe7
-          node --experimental-strip-types scripts/collect-community.ts probe7 > probe7/log.txt 2>&1 || true
+          mkdir -p probe8
+          COLLECT_MINUTES=3 node --experimental-strip-types scripts/collect-meta.ts probe8 > probe8/log.txt 2>&1 || true
+          rm -f probe8/*-state.json
           git config user.name probe; git config user.email probe@x
-          git add probe7; git commit -m "probe7 output"; git push
+          git add probe8; git commit -m "probe8 output"; git push
