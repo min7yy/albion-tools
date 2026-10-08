@@ -14,6 +14,9 @@ export function metaUrl(server: string): string {
   return `https://raw.githubusercontent.com/min7yy/albion-tools/meta-data/${server}.json`
 }
 
+/** Skill picks from community builds, refreshed daily by the same workflow. */
+export const COMMUNITY_URL = 'https://raw.githubusercontent.com/min7yy/albion-tools/meta-data/community.json'
+
 export interface WeaponMeta {
   kills: number
   deaths: number

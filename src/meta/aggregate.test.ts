@@ -7,7 +7,7 @@ function player(id: string, main: string | null, gear: Record<string, string> = 
   return { Id: id, Equipment: equipment }
 }
 
-function kill(id: number, time: string, attackers: ReturnType<typeof player>[], victim: ReturnType<typeof player>): KillEvent {
+function kill(id: number, time: string, attackers: KillEvent['Killer'][], victim: KillEvent['Victim']): KillEvent {
   return {
     EventId: id,
     TimeStamp: time,
@@ -131,5 +131,62 @@ describe('item power', () => {
     const weak = { ...sickle, AverageItemPower: 912 }
     addEvents(state, [kill(20, '2026-10-07T09:00:00Z', [strong], weak)])
     expect(state.days['2026-10-07'].weapons).toEqual({ MAIN_FIRESTAFF: { s1100: [1, 0] }, '2H_DUALSICKLE_UNDEAD': { s900: [0, 1] } })
+  })
+})
+
+describe('extra kill stats', () => {
+  const event = (): KillEvent => {
+    const attacker = { ...player('a', 'T4_MAIN_FIRESTAFF', { Potion: 'T6_POTION_HEAL@1', Food: 'T8_MEAL_STEW' }), DamageDone: 1200.4, SupportHealingDone: 50, AverageItemPower: 1250 }
+    const healer = { ...player('b', 'T6_2H_HOLYSTAFF'), DamageDone: 0, SupportHealingDone: 900 }
+    return {
+      ...kill(20, '2026-10-08T09:00:00Z', [attacker, healer], { ...sickle, AverageItemPower: 1050 }),
+      KillArea: 'HELLGATE',
+      TotalVictimKillFame: 30000,
+    }
+  }
+
+  it('records consumables, damage, healing, kill fame, matchups and areas', () => {
+    const state = emptyState()
+    addEvents(state, [event()])
+    const day = state.days['2026-10-08']
+    expect(day.gear.MAIN_FIRESTAFF.Potion).toEqual({ POTION_HEAL: 1 })
+    expect(day.gear.MAIN_FIRESTAFF.Food).toEqual({ MEAL_STEW: 1 })
+    expect(day.perf!.MAIN_FIRESTAFF).toEqual([1200, 50, 1, 30000, 1])
+    expect(day.perf!['2H_HOLYSTAFF']).toEqual([0, 900, 1, 0, 0])
+    expect(day.matchups!.MAIN_FIRESTAFF).toEqual({ '2H_DUALSICKLE_UNDEAD': [1, 0] })
+    expect(day.matchups!['2H_DUALSICKLE_UNDEAD']).toEqual({ MAIN_FIRESTAFF: [0, 1] })
+    expect(day.areas!['2H_DUALSICKLE_UNDEAD']).toEqual({ HELLGATE: [0, 1] })
+  })
+
+  it('summarises them with a daily trend', () => {
+    const state = emptyState()
+    addEvents(state, [kill(5, '2026-10-07T09:00:00Z', [fire], sickle), event()])
+    const summary = summarize(state, 'asia', new Date('2026-10-08T12:00:00Z'))
+    expect(summary.dates).toEqual(['2026-10-07', '2026-10-08'])
+    const w = summary.weapons.MAIN_FIRESTAFF
+    expect(w.trend).toEqual([[1, 0], [1, 0]])
+    // Two killing blows, but only the second kill recorded damage.
+    expect(w.perf).toEqual([1200, 50, 1, 30000, 2])
+    expect(w.matchups).toEqual([['2H_DUALSICKLE_UNDEAD', 2, 0]])
+    expect(w.gear.Potion).toEqual([['POTION_HEAL', 1]])
+    expect(summary.weapons['2H_HOLYSTAFF'].trend).toEqual([[0, 0], [1, 0]])
+  })
+
+  it('keeps the top loadouts of every item power bracket', () => {
+    const state = emptyState()
+    const events: KillEvent[] = []
+    // 14 popular low-IP loadouts, then one rare high-IP loadout that would miss the overall top 12.
+    for (let i = 0; i < 14; i++) {
+      for (let n = 0; n < 3; n++) {
+        const p = { ...player(`p${i}-${n}`, 'T4_MAIN_FIRESTAFF', { Cape: `T4_CAPE${i}` }), AverageItemPower: 900 }
+        events.push(kill(100 + i * 10 + n, '2026-10-08T09:00:00Z', [p], sickle))
+      }
+    }
+    const rare = { ...player('r', 'T4_MAIN_FIRESTAFF', { Cape: 'T8_CAPERARE' }), AverageItemPower: 1450 }
+    events.push(kill(999, '2026-10-08T09:00:00Z', [rare], sickle))
+    addEvents(state, events)
+    const builds = summarize(state, 'asia', new Date('2026-10-08T12:00:00Z')).weapons.MAIN_FIRESTAFF.builds!
+    expect(builds.some(([bases]) => bases[4] === 'CAPERARE')).toBe(true)
+    expect(builds.length).toBe(13)
   })
 })
