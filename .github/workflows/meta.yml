@@ -1,15 +1,17 @@
 name: Collect kill meta
 
-# Polls recent kills from the official API for about 25 minutes of every half hour and publishes a
-# rolling week of weapon use, gear pairings and whole loadouts to the meta-data branch, which the
-# site reads.
+# Polls recent kills from the official API nonstop and publishes a rolling week of weapon use,
+# gear pairings and whole loadouts (by fight size and item power) to the meta-data branch, which
+# the site reads. Each run collects for 50 minutes, publishes, then starts the next run itself;
+# the schedule only restarts the chain if a run fails (GitHub runs scheduled jobs late or not at all).
 on:
   schedule:
-    - cron: '7,37 * * * *'
+    - cron: '17 * * * *'
   workflow_dispatch:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: meta
@@ -18,7 +20,7 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 65
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,7 +34,7 @@ jobs:
           fi
       - name: Collect kills
         env:
-          COLLECT_MINUTES: 25
+          COLLECT_MINUTES: 50
         run: node --experimental-strip-types scripts/collect-meta.ts meta-out
       - name: Publish to the meta-data branch
         # One commit, force-pushed each run, so the branch never builds up history.
@@ -46,3 +48,7 @@ jobs:
           git add -A
           git commit -qm "Kill meta $(date -u +%FT%TZ)"
           git push -qf "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" meta-data
+      - name: Start the next run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run meta.yml --ref "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}"

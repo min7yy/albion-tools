@@ -123,3 +123,13 @@ describe('loadouts', () => {
     expect(summarize(state, 'asia', new Date('2026-10-07T12:00:00Z')).weapons.MAIN_SWORD.builds).toBeUndefined()
   })
 })
+
+describe('item power', () => {
+  it('records each player under their fight size and item power step', () => {
+    const state = emptyState()
+    const strong = { ...fire, AverageItemPower: 1187.4 }
+    const weak = { ...sickle, AverageItemPower: 912 }
+    addEvents(state, [kill(20, '2026-10-07T09:00:00Z', [strong], weak)])
+    expect(state.days['2026-10-07'].weapons).toEqual({ MAIN_FIRESTAFF: { s1100: [1, 0] }, '2H_DUALSICKLE_UNDEAD': { s900: [0, 1] } })
+  })
+})

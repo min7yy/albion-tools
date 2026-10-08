@@ -25,6 +25,8 @@ interface KillItem {
 }
 interface KillPlayer {
   Id: string
+  /** Average item power of the player's gear at the time, spec and quality included. */
+  AverageItemPower?: number
   Equipment?: Partial<Record<string, KillItem | null>>
 }
 /** The parts of a gameinfo /events entry that the tracker reads. */
@@ -37,8 +39,46 @@ export interface KillEvent {
   Participants?: KillPlayer[]
 }
 
-/** [kills, deaths] per fight size. */
-export type WeaponStats = Partial<Record<FightSize, [number, number]>>
+/** Item power is recorded in steps of this size. */
+export const IP_STEP = 100
+
+/**
+ * [wins, losses] keyed by fight size and the player's item power rounded down to IP_STEP, as in
+ * "s1100". Days recorded before item power was tracked use the bare fight size ("s").
+ */
+export type WeaponStats = Record<string, [number, number]>
+
+export function statKey(size: FightSize, itemPower?: number): string {
+  return itemPower && itemPower > 0 ? `${size}${Math.floor(itemPower / IP_STEP) * IP_STEP}` : size
+}
+
+/** Splits a stats key into its fight size and item power step (null on older days). */
+export function parseStatKey(key: string): { size: FightSize; itemPower: number | null } {
+  return { size: key[0] as FightSize, itemPower: key.length > 1 ? Number(key.slice(1)) : null }
+}
+
+export interface StatsFilter {
+  /** Fight size, or every size. */
+  size?: FightSize | 'all'
+  /** Only fights where the player's item power was within this range (inclusive of `from`). */
+  itemPower?: { from: number; to: number }
+}
+
+/** [wins, losses] over the entries that match the filter. */
+export function filterStats(stats: WeaponStats, filter: StatsFilter = {}): [number, number] {
+  let wins = 0
+  let losses = 0
+  for (const [key, [w, l]] of Object.entries(stats)) {
+    const { size, itemPower } = parseStatKey(key)
+    if (filter.size && filter.size !== 'all' && size !== filter.size) continue
+    if (filter.itemPower && (itemPower === null || itemPower < filter.itemPower.from || itemPower >= filter.itemPower.to))
+      continue
+    wins += w
+    losses += l
+  }
+  return [wins, losses]
+}
+
 /** gear[weapon][slot][item] = times seen together. */
 export type GearCounts = Record<string, Partial<Record<GearSlot, Record<string, number>>>>
 
@@ -93,25 +133,23 @@ export function loadoutKey(player: KillPlayer): string {
   }).join('|')
 }
 
-function addPair(stats: WeaponStats, size: FightSize, outcome: 0 | 1) {
-  const pair = (stats[size] ??= [0, 0])
+function addPair(stats: WeaponStats, key: string, outcome: 0 | 1) {
+  const pair = (stats[key] ??= [0, 0])
   pair[outcome]++
 }
 
 function sumPairs(into: WeaponStats, from: WeaponStats) {
-  for (const size of FIGHT_SIZES) {
-    const add = from[size]
-    if (!add) continue
-    const pair = (into[size] ??= [0, 0])
+  for (const [key, add] of Object.entries(from)) {
+    const pair = (into[key] ??= [0, 0])
     pair[0] += add[0]
     pair[1] += add[1]
   }
 }
 
-/** Fights a loadout or weapon appears in, over every fight size. */
+/** Fights a loadout or weapon appears in, over every fight size and item power. */
 export function totalFights(stats: WeaponStats): number {
   let n = 0
-  for (const size of FIGHT_SIZES) n += (stats[size]?.[0] ?? 0) + (stats[size]?.[1] ?? 0)
+  for (const [w, l] of Object.values(stats)) n += w + l
   return n
 }
 
@@ -120,9 +158,10 @@ function record(day: DayStats, player: KillPlayer, size: FightSize, outcome: 0 |
   if (!main) return
   const weapon = itemBase(main)
   if (!isWeapon(weapon)) return
-  addPair((day.weapons[weapon] ??= {}), size, outcome)
+  const key = statKey(size, player.AverageItemPower)
+  addPair((day.weapons[weapon] ??= {}), key, outcome)
   const builds = ((day.builds ??= {})[weapon] ??= {})
-  addPair((builds[loadoutKey(player)] ??= {}), size, outcome)
+  addPair((builds[loadoutKey(player)] ??= {}), key, outcome)
   const gear = (day.gear[weapon] ??= {})
   for (const slot of GEAR_SLOTS) {
     const type = player.Equipment?.[slot]?.Type

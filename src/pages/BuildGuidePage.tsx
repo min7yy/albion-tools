@@ -1,160 +1,72 @@
-import { Fragment, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { ServerId } from '../api/servers'
-import { MARKET_CITIES } from '../api/cities'
-import { indexQualityPrices, QUALITIES, QUALITY_NAMES, type Offer, type OfferSettings, type QualityPriceLookup, type WeaponOption } from '../buildguide/value'
-import { WEAPONS, weaponItemIds, type Weapon } from '../buildguide/weapons'
+import { WEAPONS } from '../buildguide/weapons'
 import { WEAPON_TYPES, weaponTypeLabel } from '../buildguide/types'
 import { ROLES, weaponRole, type Role } from '../buildguide/roles'
 import { FIGHT_FILTERS, type FightFilter } from '../buildguide/meta'
-import { BUILDS_PER_WEAPON, SORT_MODES, loadoutsFor, rankBuilds, type BuildRow, type SortMode } from '../buildguide/loadouts'
+import {
+  BUILDS_PER_WEAPON,
+  MIN_FIGHTS,
+  PRIOR_FIGHTS,
+  SORT_MODES,
+  alternatives,
+  buildsFor,
+  rankBuilds,
+  statsFilter,
+  type BuildRow,
+  type SortMode,
+} from '../buildguide/loadouts'
 import { useMeta } from '../useMeta'
-import { SLOT_LABELS, gearItemIds, type Gear } from '../buildguide/gear'
-import { usualGear } from '../buildguide/sets'
-import { BAND, buildSet, equivalenceLadder, noSetReason, type SetPick } from '../buildguide/target'
-import { specFromLevels } from '../buildguide/mastery'
+import { SLOT_LABELS } from '../buildguide/gear'
 import { ItemIcon } from '../components/ItemIcon'
 import { HowItWorks, MoreOptions } from '../components/MoreOptions'
-import { UploaderHelp } from '../components/UploaderHelp'
-import { usePrices } from '../usePrices'
-import { useSaleAverages } from '../useSaleAverages'
-import { usePriceArchive } from '../usePriceArchive'
 import { useStoredState, withDefaults } from '../useStoredState'
-import { formatAge, formatPercent, formatSilver, tierLabel } from '../format'
+import { formatAge, formatPercent } from '../format'
 
 interface BuildGuideSettings {
-  /** Average item power to reach, as the game shows it (spec included). */
-  target: number
+  /** Only count fights where the player's item power was near this; null for every fight. */
+  itemPower: number | null
   role: Role
   /** A weapon type within the role, or 'all'. */
   sub: string
   hands: 'any' | '1h' | '2h'
-  cities: string[]
-  maxAgeHours: number
   fight: FightFilter
   sort: SortMode
-  /** Destiny board levels assumed on every weapon and armour line (0–100). */
-  mastery: number
-  /** Destiny board levels assumed on the exact item worn (0–100, elite levels aside). */
-  spec: number
 }
 
 const DEFAULTS: BuildGuideSettings = {
-  target: 1100,
+  itemPower: null,
   role: 'dps',
   sub: 'all',
   hands: 'any',
-  cities: [...MARKET_CITIES],
-  maxAgeHours: 48,
   fight: 'all',
   sort: 'recommended',
-  mastery: 100,
-  spec: 50,
 }
-const AGE_OPTIONS = [6, 24, 48, 168]
-const TARGET_MIN = 700
-const TARGET_MAX = 1800
-const TARGET_PRESETS = [900, 1000, 1100, 1200, 1300, 1400]
+const IP_PRESETS = [800, 900, 1000, 1100, 1200, 1300, 1400]
 
 /** Cards shown before "Show more": a whole role can have a few hundred builds. */
 const CARDS_SHOWN = 30
 
-/** Identifies a card: the weapon plus its loadout. */
+/** Icons are drawn at one tier: the kill data says which items, and the item power says how strong. */
+const iconId = (base: string) => `T6_${base}`
+
+const FIGHT_LABELS = { s: 'Solo', m: 'Small group', l: 'Large' } as const
+
 function buildKey(r: BuildRow): string {
-  return `${r.weapon.base}|${r.loadout ? r.set.picks.map((p) => p.item.base).join('|') : 'usual'}`
-}
-
-function Version({ o }: { o: Pick<WeaponOption, 'tier' | 'ench' | 'quality'> }) {
-  return (
-    <>
-      <span className={`ench e${o.ench}`}>{tierLabel(o.tier, o.ench)}</span>
-      {o.quality > 1 && <span className={`quality q${o.quality}`}>{QUALITY_NAMES[o.quality]}</span>}
-    </>
-  )
-}
-
-/** Marks a price that isn't a current listing: last week's average sale, or an older listing the archive saw. */
-function PriceNote({ offer }: { offer: Pick<Offer, 'average' | 'archived' | 'date'> }) {
-  if (offer.average)
-    return (
-      <span className="tag-avg" title="No current listing here; this is last week's average sale price">
-        {' '}avg
-      </span>
-    )
-  if (offer.archived)
-    return (
-      <span className="tag-avg" title="No current listing here; this is the last one seen, which may have sold since">
-        {' '}seen {formatAge(offer.date)}
-      </span>
-    )
-  return null
-}
-
-/** The same item power for less: every version of one piece that matches it, with its cheapest city. */
-function Ladder({
-  pick,
-  target,
-  setCity,
-  lookup,
-  offers,
-  spec,
-}: {
-  pick: SetPick
-  target: number
-  setCity: string
-  lookup: QualityPriceLookup
-  offers: OfferSettings
-  spec: number
-}) {
-  const rows = useMemo(
-    () => equivalenceLadder(pick.item, pick.slot, target, lookup, offers, spec),
-    [pick.item, pick.slot, target, lookup, offers, spec],
-  )
-  if (!rows.length) return null
-  let cheapest = Infinity
-  for (const r of rows) for (const o of r.offers.values()) cheapest = Math.min(cheapest, o.price)
-  return (
-    <table className="breakdown ladder">
-      <tbody>
-        {rows.map((r) => {
-          const best = [...r.offers.values()].sort((a, b) => a.price - b.price)[0]
-          const here = r.offers.get(setCity)
-          return (
-            <tr key={`${r.tier}.${r.ench}.${r.quality}`}>
-              <td>
-                <span className="slot">{r.itemPower} IP</span>
-                <Version o={r} />
-              </td>
-              <td className="num">
-                <span className="slot">{setCity}</span>
-                {here ? formatSilver(here.price) : '–'}
-                {here && <PriceNote offer={here} />}
-              </td>
-              <td className={`num${best.price === cheapest ? ' pos' : ''}`}>
-                <span className="slot">{best.city}</span>
-                {formatSilver(best.price)}
-                <PriceNote offer={best} />
-              </td>
-            </tr>
-          )
-        })}
-      </tbody>
-    </table>
-  )
+  return `${r.weapon.base}|${r.usual ? 'usual' : r.gear.map((g) => g.base).join('|')}`
 }
 
 export default function BuildGuidePage({ server }: { server: ServerId }) {
   const [settings, setSettings] = useStoredState<BuildGuideSettings>(
-    // v6: builds are whole loadouts from recent kills, sorted by win rate and play too.
-    'albion-tools.buildguide.settings.v6',
+    // v7: builds come from kill data alone, with no prices.
+    'albion-tools.buildguide.settings.v7',
     DEFAULTS,
     withDefaults(DEFAULTS),
   )
   const set = (patch: Partial<BuildGuideSettings>) => setSettings({ ...settings, ...patch })
   const [selected, setSelected] = useState<string | null>(null)
-  const [openSlot, setOpenSlot] = useState<string | null>(null)
   const [cardLimit, setCardLimit] = useState(CARDS_SHOWN)
 
-  // Prices are fetched for one role at a time: every version and quality of every item is a lot of rows.
   const roleTypes = useMemo(
     () => WEAPON_TYPES.filter((s) => WEAPONS.some((w) => w.sub === s && weaponRole(w) === settings.role)),
     [settings.role],
@@ -169,112 +81,35 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
   )
   const { summary, error: metaError } = useMeta(server)
 
-  // Each weapon's most worn whole loadouts from recent kills in this fight size.
-  const loadouts = useMemo(() => {
-    const map = new Map<string, ReturnType<typeof loadoutsFor>>()
-    if (summary) for (const w of weapons) map.set(w.base, loadoutsFor(w, summary, settings.fight).slice(0, BUILDS_PER_WEAPON))
-    return map
-  }, [weapons, summary, settings.fight])
-  // Weapons without enough recorded fights fall back to the gear most often seen with them, slot by slot.
-  const gearFor = useMemo(() => {
-    const map = new Map<string, Gear[][]>()
-    if (summary) for (const w of weapons) map.set(w.base, usualGear(w, summary))
-    return map
-  }, [weapons, summary])
-  const itemIds = useMemo(() => {
-    if (!summary) return []
-    const gear = new Map<string, Gear>()
-    for (const slots of gearFor.values()) for (const g of slots.flat()) gear.set(g.base, g)
-    for (const list of loadouts.values()) for (const l of list) for (const g of l.gear.flat()) gear.set(g.base, g)
-    return [...weaponItemIds(weapons), ...gearItemIds([...gear.values()])]
-  }, [summary, weapons, gearFor, loadouts])
-  const { prices, loading, error, fetchedAt, reload } = usePrices(server, itemIds, [...MARKET_CITIES], QUALITIES)
-  // Fills gaps where a city has no current listing; the page shows listings first and updates when this lands.
-  const history = useSaleAverages(server, itemIds, [...MARKET_CITIES], QUALITIES)
-  const archive = usePriceArchive(server)
-
-  const offers = useMemo<OfferSettings>(
-    () => ({
-      cities: settings.cities,
-      maxAgeHours: settings.maxAgeHours,
-      // Ages are measured from when the prices were loaded; with no prices there is nothing to age.
-      now: fetchedAt?.getTime() ?? 0,
-      archive,
-      averages: history.averages,
-    }),
-    [settings.cities, settings.maxAgeHours, fetchedAt, archive, history.averages],
+  // Item power is only in kills recorded since the tracker started saving it.
+  const hasItemPower = useMemo(
+    () => !!summary && Object.values(summary.weapons).some((w) => Object.keys(w.stats).some((k) => k.length > 1)),
+    [summary],
   )
-  const lookup = useMemo(() => indexQualityPrices(prices), [prices])
-  const spec = specFromLevels(settings.mastery, settings.spec)
-
-  const [rows, missing] = useMemo(() => {
+  const [rows, quiet] = useMemo(() => {
+    if (!summary) return [[], []] as const
+    const filter = statsFilter(settings.fight, settings.itemPower)
     const list: BuildRow[] = []
-    const none: Weapon[] = []
-    for (const weapon of weapons) {
-      let priced = 0
-      for (const loadout of loadouts.get(weapon.base) ?? []) {
-        const set = buildSet(weapon, loadout.gear, lookup, offers, spec, settings.target)
-        if (!set) continue
-        list.push({ weapon, loadout, set })
-        priced++
-      }
-      if (priced) continue
-      const set = buildSet(weapon, gearFor.get(weapon.base) ?? [], lookup, offers, spec, settings.target)
-      if (set) list.push({ weapon, loadout: null, set })
-      else none.push(weapon)
+    const none: string[] = []
+    for (const w of weapons) {
+      const builds = buildsFor(w, summary, filter)
+      if (builds.length) list.push(...builds)
+      else none.push(w.name)
     }
     return [rankBuilds(list, settings.sort), none] as const
-  }, [weapons, loadouts, gearFor, lookup, offers, spec, settings.target, settings.sort])
-  // Only worked out once prices are in, and only for the weapons left out.
-  const missingReasons = useMemo(
-    () =>
-      prices.length
-        ? missing.map((w) => ({ weapon: w, reason: noSetReason(w, gearFor.get(w.base) ?? [], lookup, offers, spec, settings.target) }))
-        : [],
-    [missing, prices.length, gearFor, lookup, offers, spec, settings.target],
-  )
-
-  // Pieces on screen priced from an older listing or an average, per city, to look up in game.
-  const needed = useMemo(() => {
-    const byCity = new Map<string, Set<string>>()
-    for (const r of rows.slice(0, cardLimit)) {
-      for (const { item, option } of r.set.picks) {
-        if (!option.average && !option.archived) continue
-        if (!byCity.has(option.city)) byCity.set(option.city, new Set())
-        byCity.get(option.city)!.add(`${item.name} ${tierLabel(option.tier, option.ench)}`)
-      }
-    }
-    return new Map([...byCity].sort((a, b) => a[0].localeCompare(b[0])).map(([city, items]) => [city, [...items].sort()]))
-  }, [rows, cardLimit])
-
-  const toggleCity = (city: string) =>
-    set({
-      cities: settings.cities.includes(city) ? settings.cities.filter((c) => c !== city) : [...settings.cities, city],
-    })
-  const clampTarget = (n: number) => Math.min(TARGET_MAX, Math.max(TARGET_MIN, Math.round(n / 10) * 10))
+  }, [weapons, summary, settings.fight, settings.itemPower, settings.sort])
 
   return (
     <main className="panel">
       <div className="target-row">
-        <label className="budget-input">
-          Target average item power
-          <span>
-            <input
-              type="number"
-              min={TARGET_MIN}
-              max={TARGET_MAX}
-              step={10}
-              value={settings.target}
-              onChange={(e) => set({ target: Number(e.target.value) || 0 })}
-              onBlur={() => set({ target: clampTarget(settings.target) })}
-            />{' '}
-            <small>IP</small>
-          </span>
-        </label>
-        <div className="chips" role="group" aria-label="Common targets">
-          {TARGET_PRESETS.map((t) => (
-            <button key={t} className={settings.target === t ? 'active' : ''} onClick={() => set({ target: t })}>
-              {t}
+        <span className="budget-input">Your item power</span>
+        <div className="chips" role="group" aria-label="Item power">
+          <button className={settings.itemPower === null ? 'active' : ''} onClick={() => set({ itemPower: null })}>
+            Any
+          </button>
+          {IP_PRESETS.map((ip) => (
+            <button key={ip} className={settings.itemPower === ip ? 'active' : ''} onClick={() => set({ itemPower: ip })}>
+              {ip}
             </button>
           ))}
         </div>
@@ -324,12 +159,13 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
             </span>
           </label>
         </div>
-        <div className="refresh">
-          <span className="hint">{loading ? 'Loading prices…' : fetchedAt ? `Prices loaded ${formatAge(fetchedAt)}` : ''}</span>
-          <button onClick={reload} disabled={loading}>
-            Refresh
-          </button>
-        </div>
+        {summary && (
+          <div className="refresh">
+            <span className="hint">
+              {summary.events.toLocaleString()} kills since {summary.from}, updated {formatAge(new Date(summary.updatedAt))}
+            </span>
+          </div>
+        )}
       </div>
       {roleTypes.length > 1 && (
         <div className="chips type-chips" role="group" aria-label="Weapon type">
@@ -340,37 +176,8 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
           ))}
         </div>
       )}
-      <MoreOptions
-        summary={[
-          `Mastery ${settings.mastery}, spec ${settings.spec} (+${Math.round(spec)} IP)`,
-          settings.hands !== 'any' && (settings.hands === '1h' ? 'One-handed' : 'Two-handed'),
-          settings.cities.length === MARKET_CITIES.length ? 'All cities' : `${settings.cities.length} cities`,
-          `Prices under ${settings.maxAgeHours < 48 ? `${settings.maxAgeHours}h` : `${settings.maxAgeHours / 24}d`}`,
-        ]
-          .filter(Boolean)
-          .join(' · ')}
-      >
+      <MoreOptions summary={settings.hands === 'any' ? 'Any weapon' : settings.hands === '1h' ? 'One-handed' : 'Two-handed'}>
         <div className="option-group">
-          <label title="Destiny board levels on each weapon and armour line, e.g. Crossbow Fighter. Each level adds 0.2 item power.">
-            Mastery level
-            <input
-              type="number"
-              min={0}
-              max={100}
-              value={settings.mastery}
-              onChange={(e) => set({ mastery: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })}
-            />
-          </label>
-          <label title="Destiny board levels on the exact items worn, e.g. Light Crossbow Combat Specialist. Each level adds 2 item power.">
-            Item spec level
-            <input
-              type="number"
-              min={0}
-              max={120}
-              value={settings.spec}
-              onChange={(e) => set({ spec: Math.min(120, Math.max(0, Number(e.target.value) || 0)) })}
-            />
-          </label>
           <label>
             Hands
             <select value={settings.hands} onChange={(e) => set({ hands: e.target.value as BuildGuideSettings['hands'] })}>
@@ -379,36 +186,17 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
               <option value="2h">Two-handed</option>
             </select>
           </label>
-          <label>
-            Ignore prices older than
-            <select value={settings.maxAgeHours} onChange={(e) => set({ maxAgeHours: Number(e.target.value) })}>
-              {AGE_OPTIONS.map((h) => (
-                <option key={h} value={h}>
-                  {h < 48 ? `${h} hours` : `${h / 24} days`}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div className="option-group">
-          {MARKET_CITIES.map((city) => (
-            <label key={city} className="check">
-              <input type="checkbox" checked={settings.cities.includes(city)} onChange={() => toggleCity(city)} />
-              {city}
-            </label>
-          ))}
         </div>
       </MoreOptions>
-      {error && <p className="error">{error}</p>}
-      {metaError && <p className="error">{metaError}. Sets are built from the gear seen in recent kills, so they can't load.</p>}
+      {metaError && <p className="error">{metaError}</p>}
 
-      {prices.length > 0 && <UploaderHelp needed={needed} unpriced={missing.map((w) => w.name)} />}
-      {(loading && !prices.length) || (!summary && !metaError) ? (
-        <p className="hint">Loading prices for {weapons.length} weapons and their usual gear…</p>
-      ) : !rows.length ? (
+      {!summary && !metaError ? (
+        <p className="hint">Loading recent kills…</p>
+      ) : summary && !rows.length ? (
         <p className="hint">
-          No set reaches {settings.target} item power with recent prices. Try a lower target or more cities. Each
-          weapon's reason is below.
+          {settings.itemPower && !hasItemPower
+            ? 'Item power is recorded for kills from 8 October onward, so this fills in as new kills come in. Pick Any for now.'
+            : 'No recent fights match these filters. Try Any item power or All fights.'}
         </p>
       ) : (
         <ol className="build-cards">
@@ -417,118 +205,74 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
             const open = selected === key
             return (
               <li key={key} className={`build-card${open ? ' open' : ''}`}>
-                <button
-                  className="build-head"
-                  aria-expanded={open}
-                  onClick={() => {
-                    setSelected(open ? null : key)
-                    setOpenSlot(null)
-                  }}
-                >
+                <button className="build-head" aria-expanded={open} onClick={() => setSelected(open ? null : key)}>
                   <span className="build-title">
                     <span className="muted">{i + 1}</span>
                     <strong>{r.weapon.name}</strong>
                     {r.weapon.twoHanded && <span className="tag-2h">2H</span>}
                   </span>
-                  <span className="build-price">
-                    <strong>{formatSilver(r.set.price)}</strong>
-                    <small>
-                      in {r.set.city}
-                      {r.set.picks.some((p) => p.option.city !== r.set.city) &&
-                        ` + ${r.set.picks.filter((p) => p.option.city !== r.set.city).length} elsewhere`}
-                      {r.set.picks.some((p) => p.option.average || p.option.archived) && (
-                        <span className="tag-avg" title="Some pieces have no current listing; their price is an older listing or last week's average sale">
-                          {' '}incl. older prices
-                        </span>
-                      )}
-                    </small>
+                  <span className="build-price" title={`${r.wins} kills, ${r.losses} deaths`}>
+                    <strong>{formatPercent(r.wins / r.fights, 0)}</strong>
+                    <small>win rate</small>
                   </span>
                   <span className="build-strip">
-                    {r.set.picks.map(({ slot, item, option }) => (
-                      <span
-                        key={slot}
-                        className="strip-item"
-                        title={`${SLOT_LABELS[slot]}: ${item.name}${option.city !== r.set.city ? ` (buy in ${option.city})` : ''}`}
-                      >
-                        <ItemIcon id={option.itemId} size={40} />
-                        <span className={`ench e${option.ench}`}>{tierLabel(option.tier, option.ench)}</span>
+                    {[r.weapon, ...r.gear].map((item, n) => (
+                      <span key={item.base} className="strip-item" title={`${n ? SLOT_LABELS[r.gear[n - 1].slot] : 'Weapon'}: ${item.name}`}>
+                        <ItemIcon id={iconId(item.base)} size={40} />
                       </span>
                     ))}
                   </span>
                   <span className="build-stats">
-                    <span title="Average over six slots as the game counts it, spec included">{r.set.itemPower} IP</span>
-                    {r.loadout ? (
-                      <>
-                        <span title="Recent fights where this exact loadout got a kill or died">
-                          {r.loadout.fights.toLocaleString()} fights
-                        </span>
-                        <span
-                          title={`${r.loadout.wins} kills, ${r.loadout.losses} deaths. Ranked with a little pull toward 50% so small samples don't top the list.`}
-                        >
-                          {formatPercent(r.loadout.wins / r.loadout.fights, 0)} win rate
-                        </span>
-                      </>
-                    ) : (
+                    <span title="Recent fights where this build got a kill or died">{r.fights.toLocaleString()} fights</span>
+                    {r.itemPower && <span title="Average item power of the players wearing it">~{r.itemPower} IP</span>}
+                    {r.usual && (
                       <span
                         className="tag-avg"
-                        title="Not enough recent fights with one exact loadout yet, so this uses the gear most often seen with the weapon, slot by slot"
+                        title={`No single loadout has ${MIN_FIGHTS} fights yet, so this is the item most often worn with the weapon in each slot, with the weapon's own record`}
                       >
                         usual gear
                       </span>
                     )}
                   </span>
                 </button>
-                {open && (
+                {open && summary && (
                   <div className="build-body">
-                    <p className="hint">Tap a piece to see versions with the same item power and where each is cheapest.</p>
                     <table className="breakdown set">
                       <tbody>
-                        {r.set.picks.map((pick) => {
-                          const { slot, item, option } = pick
-                          const slotOpen = openSlot === slot
+                        {r.gear.map((g) => {
+                          const others = alternatives(r.weapon, summary, g.slot).filter((a) => a.item.base !== g.base)
                           return (
-                            <Fragment key={slot}>
-                              <tr className="clickable" onClick={() => setOpenSlot(slotOpen ? null : slot)}>
-                                <td>
-                                  <span className="slot">
-                                    {SLOT_LABELS[slot]} {slotOpen ? '▾' : '▸'}
-                                  </span>
-                                  <span className="item-cell">
-                                    <ItemIcon id={option.itemId} size={24} />
-                                    {item.name}
-                                    {pick.rank > 0 && (
-                                      <span className="tag-2h" title="The usual item isn't sold here, so this is the next most common one or a common substitute">
-                                        alt
-                                      </span>
-                                    )}
-                                  </span>
-                                </td>
-                                <td>
-                                  <span className="slot">{option.itemPower} IP</span>
-                                  <Version o={option} />
-                                </td>
-                                <td className="num">
-                                  {option.city !== r.set.city && <span className="slot">buy in {option.city}</span>}
-                                  {formatSilver(option.price)}
-                                  <PriceNote offer={option} />
-                                </td>
-                              </tr>
-                              {slotOpen && (
-                                <tr className="ladder-row">
-                                  <td colSpan={3}>
-                                    <Ladder
-                                      pick={pick}
-                                      target={settings.target}
-                                      setCity={r.set.city}
-                                      lookup={lookup}
-                                      offers={offers}
-                                      spec={spec}
-                                    />
-                                  </td>
-                                </tr>
-                              )}
-                            </Fragment>
+                            <tr key={g.slot}>
+                              <td>
+                                <span className="slot">{SLOT_LABELS[g.slot]}</span>
+                                <span className="item-cell">
+                                  <ItemIcon id={iconId(g.base)} size={24} />
+                                  {g.name}
+                                </span>
+                              </td>
+                              <td className="hint">
+                                {others.length > 0 &&
+                                  `Also worn: ${others
+                                    .slice(0, 3)
+                                    .map((a) => `${a.item.name} ${formatPercent(a.share, 0)}`)
+                                    .join(', ')}`}
+                              </td>
+                            </tr>
                           )
+                        })}
+                      </tbody>
+                    </table>
+                    <table className="breakdown">
+                      <tbody>
+                        {(['s', 'm', 'l'] as const).map((size) => {
+                          const [w, l] = r.bySize[size]
+                          return w + l > 0 ? (
+                            <tr key={size}>
+                              <td>{FIGHT_LABELS[size]}</td>
+                              <td className="num">{(w + l).toLocaleString()} fights</td>
+                              <td className="num">{formatPercent(w / (w + l), 0)} win rate</td>
+                            </tr>
+                          ) : null
                         })}
                       </tbody>
                     </table>
@@ -544,37 +288,19 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
           Show more ({rows.length - cardLimit} left)
         </button>
       )}
-      {missingReasons.length > 0 && (
-        <ol className="build-cards missing-builds" aria-label="Weapons with no set">
-          {missingReasons.map((m) => (
-            <li key={m.weapon.base} className="build-card unpriced">
-              <span className="build-head">
-                <span className="build-title">
-                  <strong>{m.weapon.name}</strong>
-                  {m.weapon.twoHanded && <span className="tag-2h">2H</span>}
-                </span>
-                <span className="build-stats">No set at {settings.target} IP: {m.reason}</span>
-              </span>
-            </li>
-          ))}
-        </ol>
+      {summary && quiet.length > 0 && (
+        <p className="hint">No recent fights for: {quiet.join(', ')}.</p>
       )}
       <HowItWorks>
         Builds are whole loadouts (weapon, off-hand, helmet, armour, shoes and cape) seen together in recent kills from the
-        official killboard. Every attacker in a kill counts a win for their loadout and the victim a loss, split by fight
-        size; up to {BUILDS_PER_WEAPON} loadouts per weapon with at least 8 fights are shown. The killboard only records
-        fights where someone died, so ganks count as wins: treat win rates as a guide. Weapons without enough fights yet use
-        the gear most often seen with them, slot by slot, marked usual gear. Every piece is the cheapest version
-        within {BAND} IP of your target (capes, which get no spec, a little lower and the rest a little higher so the
-        average lands on it), so no set mixes a low weapon with a high helmet. Sets are bought in the city that sells the
-        most pieces; anything it lacks comes from the cheapest other city and says where. Item power counts six slots as
-        the game does (a two-handed weapon fills the off-hand too) and your spec (+5% of spec per tier above T4, none on capes, from the game's own files).
-        Where a city has no current listing, the last one seen there in the past week is used and marked with its age
-        (a job saves every listing the Albion Data Project reports, since it only keeps them for about a day); failing
-        that, last week's average sale price, marked avg. Recommended
-        weighs win rate 40%, how often it's played 30% and price 30%. Weapons are grouped by the role they usually play
-        (the usual community split).
-        {summary ? ` Based on ${summary.events.toLocaleString()} kills since ${summary.from}, updated ${formatAge(new Date(summary.updatedAt))}.` : ''}
+        official killboard, which every Albion killboard site draws on. Every attacker in a kill counts a win for their
+        loadout and the victim a loss, split by fight size and by the player's item power. Up to {BUILDS_PER_WEAPON}{' '}
+        loadouts per weapon with at least {MIN_FIGHTS} fights are shown; weapons without one show the item most often worn
+        with them in each slot, marked usual gear. Picking an item power counts only fights where the player was within 100
+        of it. The killboard only records fights where someone died, so ganks count as wins: treat win rates as a guide.
+        Rankings pull win rates toward 50% as if each build had {PRIOR_FIGHTS} more fights, so a lucky few don't top the
+        list. Recommended weighs win rate and how much it's played equally. Weapons are grouped by the role they usually
+        play (the usual community split).
       </HowItWorks>
     </main>
   )

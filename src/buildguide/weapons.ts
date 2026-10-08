@@ -21,8 +21,3 @@ export const WEAPONS: Weapon[] = typed.weapons
 export function weaponItemId(base: string, tier: number, ench: number): string {
   return ench ? `T${tier}_${base}@${ench}` : `T${tier}_${base}`
 }
-
-/** Every market item id for the given weapons. */
-export function weaponItemIds(weapons: Weapon[]): string[] {
-  return weapons.flatMap((w) => w.variants.map(([tier, ench]) => weaponItemId(w.base, tier, ench)))
-}
