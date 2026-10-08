@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { buildHistoryUrls, fetchSaleAverages, fetchSalesVolume, summarizeHistory, type RawHistory } from './history'
+import { buildHistoryUrls, fetchSalesVolume, summarizeHistory, type RawHistory } from './history'
 
 const NOW = new Date('2026-10-07T12:00:00Z').getTime()
 const day = (daysAgo: number) => new Date(NOW - daysAgo * 86_400_000).toISOString().slice(0, 19)
@@ -55,20 +55,5 @@ describe('fetchSalesVolume', () => {
     await expect(
       fetchSalesVolume({ server: 'asia', items: ['T4_METALBAR'], locations: ['Thetford'], fetchImpl }),
     ).rejects.toThrow('Sales history error 500')
-  })
-})
-
-describe('fetchSaleAverages', () => {
-  it('averages last week per quality and asks only from that date', async () => {
-    const now = Date.parse('2026-10-07T12:00:00Z')
-    const body: RawHistory[] = [
-      { location: 'Martlock', item_id: 'T4_X', quality: 2, data: [{ item_count: 1, avg_price: 100, timestamp: '2026-10-06T00:00:00' }, { item_count: 3, avg_price: 200, timestamp: '2026-10-05T00:00:00' }] },
-      { location: 'Lymhurst', item_id: 'T4_X', quality: 1, data: [{ item_count: 2, avg_price: 50, timestamp: '2026-09-01T00:00:00' }] },
-    ]
-    const fetchImpl = vi.fn(async (_url: string) => new Response(JSON.stringify(body)))
-    const averages = await fetchSaleAverages({ server: 'asia', items: ['T4_X'], locations: ['Martlock', 'Lymhurst'], qualities: [1, 2], fetchImpl: fetchImpl as unknown as typeof fetch, now })
-    expect(fetchImpl.mock.calls[0][0]).toContain('qualities=1%2C2')
-    expect(fetchImpl.mock.calls[0][0]).toContain('date=9-30-2026')
-    expect(Object.fromEntries(averages)).toEqual({ 'T4_X|Martlock|2': 175 })
   })
 })

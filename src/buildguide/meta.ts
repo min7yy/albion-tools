@@ -1,4 +1,4 @@
-import type { FightSize, MetaSummary } from '../meta/aggregate'
+import { filterStats, type FightSize, type MetaSummary } from '../meta/aggregate'
 
 export type FightFilter = 'all' | FightSize
 
@@ -28,13 +28,7 @@ export function weaponMeta(summary: MetaSummary, fight: FightFilter): Map<string
   const counts = new Map<string, [number, number]>()
   let total = 0
   for (const [weapon, { stats }] of Object.entries(summary.weapons)) {
-    let k = 0
-    let d = 0
-    for (const [size, pair] of Object.entries(stats)) {
-      if (fight !== 'all' && size !== fight) continue
-      k += pair[0]
-      d += pair[1]
-    }
+    const [k, d] = filterStats(stats, { size: fight })
     if (k + d === 0) continue
     counts.set(weapon, [k, d])
     total += k + d
