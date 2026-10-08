@@ -11,13 +11,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
-          mkdir -p probe4 /tmp/c; cd /tmp/c
+          mkdir -p probe5; cd probe5
           UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36"
-          curl -sL -A "$UA" -m 60 -o main.js https://albionfreemarket.com/main-XTAVSGFE.js
-          for c in $(grep -oE 'chunk-[A-Za-z0-9_-]+\.js' main.js | sort -u); do curl -sL -A "$UA" -m 30 -o $c https://albionfreemarket.com/$c; done
-          for f in *.js; do grep -oE '.{0,160}(afmApis|baseUrl|/builds|buildsApi|BuildsApi|votes).{0,200}' $f | sed "s/^/$f: /"; done > $GITHUB_WORKSPACE/probe4/apis.txt || true
-          grep -l 'afmApis' *.js > $GITHUB_WORKSPACE/probe4/files.txt || true
-          grep -ohE 'https://[a-zA-Z0-9.-]+[a-zA-Z0-9/._-]*' *.js | sort | uniq -c | sort -rn | head -80 > $GITHUB_WORKSPACE/probe4/urls.txt
-          cd $GITHUB_WORKSPACE
-          git config user.name probe; git config user.email probe@x
-          git add probe4; git commit -m "probe4 output"; git push
+          curl -sL -A "$UA" -m 30 https://albionfreemarket.com/chunk-DFSgxv5S.js | grep -oE '.{0,300}(getTopBuilds|getBuild|searchBuilds).{0,1500}' > ctx.txt || true
+          B=https://api.albionfreemarket.com/be
+          for u in "builds/top" "builds/top?page=1" "builds/top?pageSize=50&page=1" "builds/search?query=bow"; do
+            f=$(echo "$u" | tr '/?&=' '____'); curl -sL -A "$UA" -H "Origin: https://albionfreemarket.com" -m 30 -o "$f.json" -w "$u %{http_code} %{content_type} %{size_download}\n" "$B/$u" >> index.txt || true
+          done
+          cd ..; git config user.name probe; git config user.email probe@x
+          git add probe5; git commit -m "probe5 output"; git push
