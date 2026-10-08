@@ -14,20 +14,29 @@ jobs:
         with:
           node-version: 22
       - run: |
-          mkdir -p probe11; cd probe11
-          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36'
-          for u in https://albionoracle.com/en/meta https://albionoracle.com/en/killboard https://www.albiondatabase.com/ https://www.albionkit.com/tools/killboard https://murderledger.albiononline2d.com/ https://albionbattlehub.com/en https://albionslayerboard.com/ https://www.albionkillboard.space/ https://albiononline2d.com/en/builds; do
-            n=$(echo "$u" | sed -E 's#https?://##; s#[^a-zA-Z0-9]+#_#g')
-            code=$(curl -sSL -m 30 -A "$UA" -o "$n.html" -w '%{http_code}' "$u" || echo ERR)
-            echo "$u $code $(wc -c < $n.html)" >> codes.txt
-            { echo "== $u"; grep -oE '(src)="[^"]+\.js[^"]*"' "$n.html" | head -15; } >> scripts.txt
-            for s in $(grep -oE 'src="[^"]+\.js[^"]*"' "$n.html" | sed -E 's/src="([^"]+)"/\1/' | head -15); do
-              case "$s" in http*) j="$s";; //*) j="https:$s";; /*) j="$(echo $u | grep -oE 'https?://[^/]+')$s";; *) j="$(echo $u | grep -oE 'https?://[^/]+')/$s";; esac
-              curl -sSL -m 30 -A "$UA" "$j" >> "$n.js" || true
-            done
-            { echo "== $u"; cat "$n.html" "$n.js" 2>/dev/null | grep -oE '["'"'"'`](https?://[a-zA-Z0-9.-]+)?/api[a-zA-Z0-9/_.?=&${}-]{0,100}' | sort -u | head -60; } >> apis.txt
-            { echo "== $u"; cat "$n.html" "$n.js" 2>/dev/null | grep -oiE '.{0,60}(spells?|abilities|skills?)["'"'"']?\s*[:=].{0,60}' | sort -u | head -20; } >> spells.txt
-            rm -f "$n.js"; head -c 4000 "$n.html" > "$n.head"; rm -f "$n.html"
-          done
-          cd ..; git config user.name probe; git config user.email probe@x
+          mkdir -p probe11
+          cat > /tmp/p.mjs <<'JS'
+          import fs from 'fs'
+          const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36'
+          const sites = ['https://albionoracle.com/en/meta', 'https://www.albiondatabase.com/', 'https://www.albionkit.com/tools/killboard', 'https://murderledger.albiononline2d.com/', 'https://albionbattlehub.com/en', 'https://albionslayerboard.com/', 'https://www.albionkillboard.space/', 'https://albiononline2d.com/en/builds']
+          const get = async (u) => { try { const r = await fetch(u, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(30000) }); return [r.status, await r.text()] } catch (e) { return ['ERR ' + e.message, ''] } }
+          const out = {}
+          for (const site of sites) {
+            const [status, html] = await get(site)
+            const origin = new URL(site).origin
+            const scripts = [...html.matchAll(/src="([^"]+\.js[^"]*)"/g)].map((m) => new URL(m[1], site).href).slice(0, 25)
+            let js = ''
+            for (const s of scripts) js += (await get(s))[1]
+            const all = html + js
+            out[site] = {
+              status, bytes: html.length, title: (html.match(/<title>([^<]*)/) || [])[1],
+              apis: [...new Set([...all.matchAll(/["'`]((?:https?:\/\/[a-zA-Z0-9.-]+)?\/api[a-zA-Z0-9/_.?=&${}-]{0,100})/g)].map((m) => m[1]))].slice(0, 80),
+              hosts: [...new Set([...all.matchAll(/https?:\/\/([a-zA-Z0-9.-]+\.[a-z]{2,})/g)].map((m) => m[1]))].slice(0, 60),
+              spells: [...new Set([...all.matchAll(/.{0,50}(?:spells?|abilities|skills?)["']?\s*[:=].{0,50}/gi)].map((m) => m[0]))].slice(0, 15),
+            }
+          }
+          fs.writeFileSync('probe11/out.json', JSON.stringify(out, null, 1))
+          JS
+          node /tmp/p.mjs > probe11/log.txt 2>&1 || true
+          git config user.name probe; git config user.email probe@x
           git add probe11; git commit -m "probe11 output"; git push
