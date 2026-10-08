@@ -1,0 +1,48 @@
+{
+ "https://albionoracle.com/robots.txt": "User-agent: *\nAllow: /\n\nSitemap: https://albionoracle.com/sitemap.xml\n",
+ "https://albionslayerboard.com/robots.txt": "User-agent: *\nAllow: /\nDisallow: /*/player/\nDisallow: /player/\nSitemap: https://albionslayerboard.com/sitemap.xml\n",
+ "https://www.albionkit.com/robots.txt": "User-agent: *\nAllow: /\n\n# Disallow private and admin areas\nDisallow: /private/\nDisallow: /settings/\nDisallow: /login/\nDisallow: /admin/\n\n# Crawl-delay for polite crawling\nCrawl-delay: 10\n\n# Sitemap\nSitemap: https://albionkit.com/sitemap.xml\n",
+ "oracleText": " Albion Online PvP Meta 2026 - Best Weapons &amp; Win Rates | AlbionOracle ⤓ Install can't show images, and flag emoji render as plain letters on Windows). --> ▾ Choose your tool Category Tier Enchant Reveal more Fame Planner Work out how long a Destiny Board goal will take. Read the fame you need from the in-game board, pick your activity, and see the hours. Track your real fame / hour Enter your character name to save a snapshot of your total fame. Play, then track again - we compute your real fame per hour from the difference. No login, only public data. Track fame Fame needed Your fame / hour Hours / day Typical rates (tap to fill, then edit): Fame per hour varies a lot with tier, build, premium and content - treat the presets as rough starting points and set your own. The exact fame to your next level is shown in the game's Destiny Board when you hover a node. Mastery milestones Level 20 unlocks the item tier - you can use and craft it. Level 100 full Item Power on that item - the real working level. Level 120 combat specialization ceiling (non-combat nodes cap at 100). Rough time to mastery 100 with focused play: T4 - a couple of sessions, T6 - about a week, T8 - a multi-week goal. Farm Profit Pick a crop or herb and see the profit per plot and per day at live prices. Crop / herb Plots Yield / plot Premium (4% tax) Seeds self-sustained (focus) Quality Value Pick any gear item and see the live market price at every quality tier, the Item Power bonus each grants, and how much of a premium buyers pay over Normal. Focus Efficiency Focus is limited - spend it where it pays most. Pick a craft and see the silver you save per point of focus, at live material prices. Return rate - no focus (%) Return rate - with focus (%) World Map Every open-world zone from the game data. Click a region on the schematic to filter the atlas below. It's a conceptual layout, not geographic - Outland portal links rotate, so no fabricated connections are drawn. Caerleon Fort Sterling Lymhurst Martlock Bridgewatch Thetford OUTLANDS ROADS OF AVALON THE MISTS Brecilien Faction Zones, tiers and resident factions come straight from the official game files (ao-bin-dumps). Faction = the mobs that live there (Keeper=Highlands, Heretic=Steppe, Undead=Swamp, Morgana, Avalonian=Roads). Regear Pick a full kit and see the total cost at live prices, times how many sets your party or guild needs. Sets Transport Build a cargo list to see its exact total weight and live silver value, and check it against your max load. Category Max load (kg) Clear Weights are exact from the game data. Your max load is shown in your in-game inventory - it grows with your mount and bags. Value uses the cheapest sell price across cities. Enchant &amp; Repair Work out what enchanting an item costs in runes, souls and relics at live prices, and what a repair costs. Enchant cost From .0 .1 .2 To .1 .2 .3 Repair cost Enchant .0 .1 .2 .3 .4 Durability left % Make Silver Now Scan a whole category at once and see the most profitable flips and Black Market hauls right now. Category Tier Mode City flip To Black Market Premium (4% tax) Scan prices Pick a category and tiers, then scan for the best opportunities right now. Price History Search any item and see its price trend - pick a quality, a city and a time range. City Quality Normal Good Outstanding Excellent Masterpiece Range 7d 30d 90d Price Alerts Get pinged the moment an item hits your target price. Alerts are checked while AlbionOracle is open in a tab or installed as an app. Enable notifications City Quality Normal Good Outstanding Excellent Masterpiece When price drops to or below rises to or above Target (silver) Add alert Alerts are checked every couple of minutes while AlbionOracle is open. Prices are crowdsourced so double-check in game. Arbitrage Find where to buy cheap and sell dear. Premium (4% tax) Search for an item to analyze routes. Crafting Calculator Pick an item to see if crafting it turns a profit. Reveal more ‹ All items City Resource return Premium (4% tax) Refining Overview See refining profit for every tier at once, on live prices. City Use Focus Premium (4% tax) Crafting Bonus Calculator See your exact resource return rate and how many materials you actually spend, for any station, focus and bonus setup. Crafting station Daily city bonus Use Focus (+59% bonus) Materials per craft (optional) 0% Resource return rate Return rate = bonus / (1 + bonus). Focus adds a flat +59% to the bonus stack. Specialization does not raise the rate directly - it lowers focus cost so you can focus more crafts. Avalon Roads Builder + Map Link Fit Export PNG Clear Add maps, drag them to arrange, then Link two maps by their portals. Click a map to edit its contents, resources and portal timers. Drag the empty canvas to pan, scroll to zoom. World Map - Route Planner Pick two zones and get the fastest overland route across the Royal Continent, with real zone connections. Avoid red zones and pick your mount to estimate travel time. From To Mount Avoid red zones Avoid black zones Swap Zone count and route come from the real in-game world connections. Travel time is an estimate based on published mount speeds and does not include mounting time, combat or terrain. The Outlands (black zones) use portals, not roads, so they are not part of this continent map. Loadout Planner Build a set, see its Item Power and abilities, and share the link. Codex Every item - stats, abilities, crafting and live prices. ‹ Encyclopedia Reveal more ‹ All items ‹ Encyclopedia Reveal more ‹ Encyclopedia Reveal more ‹ Monsters ‹ Encyclopedia Dungeons &amp; Instanced Content Every PvE and instanced activity in Albion - access, mechanics, tactics, recommended builds and profit. Figures are player estimates and shift every patch. No official dungeon maps exist - solo, group, Roads and Mists layouts are procedurally generated, so we diagram the systems that stay constant instead. ‹ All dungeons ‹ Encyclopedia ‹ All topics ‹ Encyclopedi",
+ "oracleLinks": [
+  "/favicon.ico",
+  "/favicon.svg",
+  "/img/icon-192.png",
+  "/img/icon-48.png",
+  "/img/icon-32.png",
+  "/img/icon-16.png",
+  "/img/apple-touch-icon.png",
+  "/site.webmanifest",
+  "/css/styles.css?v=122",
+  "/img/albionoracle-overlay.png",
+  "/en/loadout",
+  "/en/market",
+  "/en/killboard"
+ ],
+ "oracleScripts": [
+  "https://www.googletagmanager.com/gtag/js?id=G-Z9MD84T4G9",
+  "/img/shield.png",
+  "/img/wordmark.png",
+  "/img/logo-full.png",
+  "/img/albionoracle-overlay-preview.png",
+  "/img/shield.png",
+  "/img/shield.png",
+  "/img/grindveil-logo.webp",
+  "/img/icon-192.png",
+  "/img/icon-192.png",
+  "/js/i18n.js?v=122",
+  "/js/app.js?v=122"
+ ],
+ "oracleFetch": [],
+ "slayerApi": [
+  "8,425,429,500,502,503,504]),Ko=\"https://api.albionslayerboard.com\",ey={eu:Ko,na:Ko,asia:Ko};function Ct(n){const i=String(n||\"\").trim().toLowerCase();return i===\"eu\"||i===\"na\"||i===\"asi",
+  "s)\\S/g,o=>o.toUpperCase())},jc=\"https://api.albionslayerboard.com/item\",My=jc,m0=\"3\",Ly=\"3\",Hy=`/icons/v${m0}`,Oc=new Map;for(const[n,i]of Object.entries(sc))n.includes(\" \")||Oc.set(i.t"
+ ],
+ "slayerPaths": [],
+ "slayerSpells": [
+  "999/xlink\",\"xlink:href\",a);break;case\"contentEditable\":case\"spellCheck\":case\"draggable\":case\"value\":case\"autoReverse\":case\"externa",
+  "leading-relaxed mb-6\",children:\"Find popular 1v1 equipment, ability setups, and weapon win rates for Stalker and Slayer.\"}),c.j",
+  "ame:\"text-sm text-[#F7EFE1] font-black font-mono\",children:\"Abilities\"}),c.jsx(\"div\",{className:\"text-[10px] text-[#A9A092] font-",
+  "\",children:\"Compare weapon matchups, win rates, and counter abilities such as purge, reflect, and silence.\"}),c.jsxs(\"div\",{class"
+ ],
+ "kitFetch": []
+}
