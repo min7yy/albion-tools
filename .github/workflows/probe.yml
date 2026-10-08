@@ -14,29 +14,35 @@ jobs:
         with:
           node-version: 22
       - run: |
-          mkdir -p probe16
+          mkdir -p probe17
           cat > /tmp/p.mjs <<'JS'
           import fs from 'fs'
-          import zlib from 'zlib'
-          const base = 'https://gameinfo-ams.albiononline.com'
           const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-          async function page(o) { for (let a = 0; a < 3; a++) { try { const r = await fetch(`${base}/api/gameinfo/events?limit=51&offset=${o}`); if (r.ok) return await r.json(); if (r.status < 500) return [] } catch {} await sleep(2000) } return [] }
-          async function all() { const out = []; for (let o = 0; o <= 1000; o += 51) { const p = await page(o); if (!p.length) break; out.push(...p); await sleep(300) } return out }
-          const first = await all()
-          const t0 = new Date().toISOString()
-          await sleep(5 * 60 * 1000)
-          const second = await all()
-          const ids1 = new Set(first.map((e) => e.EventId))
-          const max1 = Math.max(...first.map((e) => e.EventId))
-          const min1 = Math.min(...first.map((e) => e.EventId))
-          const newOnes = second.filter((e) => !ids1.has(e.EventId))
-          const late = newOnes.filter((e) => e.EventId <= max1)
-          const order = []; for (let i = 1; i < first.length; i++) if (first[i].EventId > first[i - 1].EventId) order.push([i, first[i - 1].EventId, first[i].EventId])
-          const dupes = first.length - ids1.size
-          const summary = { t0, first: first.length, uniqueFirst: ids1.size, dupes, min1, max1, second: second.length, newInSecond: newOnes.length, lateBelowMax: late.length, lateBelowMin: newOnes.filter((e) => e.EventId < min1).length, lateSample: late.slice(0, 10).map((e) => [e.EventId, e.TimeStamp]), outOfOrderInFirst: order.length, orderSample: order.slice(0, 10), firstTimes: [first[0]?.TimeStamp, first[first.length - 1]?.TimeStamp] }
-          fs.writeFileSync('probe16.json', JSON.stringify(summary, null, 1))
-          fs.writeFileSync('probe16-events.json.gz', zlib.gzipSync(JSON.stringify(first)))
+          const servers = { europe: 'https://gameinfo-ams.albiononline.com', americas: 'https://gameinfo.albiononline.com', asia: 'https://gameinfo-sgp.albiononline.com' }
+          async function page(base, o) { for (let a = 0; a < 3; a++) { try { const r = await fetch(`${base}/api/gameinfo/events?limit=51&offset=${o}`); if (r.ok) return await r.json(); if (r.status < 500) return [] } catch {} await sleep(2000) } return [] }
+          const st = {}
+          for (const k of Object.keys(servers)) st[k] = { lastSeen: 0, cutoffCount: 0, cutoffPasses: 0, seen: new Set(), firstIds: null, fullCount: 0, pagesOld: 0, pagesFull: 0, newPerPage: Array(21).fill(0) }
+          const until = Date.now() + 15 * 60 * 1000
+          let pass = 0
+          while (Date.now() < until) {
+            for (const [k, base] of Object.entries(servers)) {
+              const s = st[k]
+              const pages = []
+              for (let o = 0; o <= 1000; o += 51) { const p = await page(base, o); if (!p.length) break; pages.push(p); await sleep(250) }
+              if (pass === 0) { for (const p of pages) for (const e of p) s.seen.add(e.EventId); s.lastSeen = Math.max(...pages.flat().map((e) => e.EventId)); continue }
+              // Old algorithm: page until a page holds an id <= lastSeen, count ids > lastSeen.
+              const last = s.lastSeen; const pass1 = new Set()
+              for (const p of pages) { s.pagesOld++; for (const e of p) if (e.EventId > last && !pass1.has(e.EventId)) { pass1.add(e.EventId); s.cutoffCount++; s.lastSeen = Math.max(s.lastSeen, e.EventId) } if (p.some((e) => e.EventId <= last)) break }
+              // Set algorithm over every page.
+              pages.forEach((p, i) => { s.pagesFull++; for (const e of p) if (!s.seen.has(e.EventId)) { s.seen.add(e.EventId); s.fullCount++; s.newPerPage[i]++ } })
+            }
+            pass++
+            await sleep(20000)
+          }
+          const out = {}
+          for (const [k, s] of Object.entries(st)) out[k] = { passes: pass, oldAlgorithm: s.cutoffCount, setAlgorithm: s.fullCount, missedShare: 1 - s.cutoffCount / s.fullCount, newPerPage: s.newPerPage }
+          fs.writeFileSync('probe17.json', JSON.stringify(out, null, 1))
           JS
-          node /tmp/p.mjs > probe16/log.txt 2>&1 || true
+          node /tmp/p.mjs > probe17/log.txt 2>&1 || true
           git config user.name probe; git config user.email probe@x
-          mv probe16.json probe16/out.json; mv probe16-events.json.gz probe16/; git add probe16; git commit -m "probe16 output"; git push
+          mv probe17.json probe17/out.json;  git add probe17; git commit -m "probe17 output"; git push
