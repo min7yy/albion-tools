@@ -5,27 +5,24 @@ import { WEAPON_TYPES, weaponTypeLabel } from '../buildguide/types'
 import { ROLES, weaponRole, type Role } from '../buildguide/roles'
 import { FIGHT_FILTERS, type FightFilter } from '../buildguide/meta'
 import {
-  BUILDS_PER_WEAPON,
+  MIN_BRACKET_FIGHTS,
   MIN_FIGHTS,
   PRIOR_FIGHTS,
   SORT_MODES,
-  alternatives,
-  buildsFor,
   rankBuilds,
-  statsFilter,
-  type BuildRow,
+  weaponRow,
+  type WeaponRow,
   type SortMode,
 } from '../buildguide/loadouts'
-import { useMeta } from '../useMeta'
-import { SLOT_LABELS } from '../buildguide/gear'
-import { ItemIcon } from '../components/ItemIcon'
+import { useCommunityPicks, useMeta } from '../useMeta'
+import { WeaponDetail } from './BuildGuideDetail'
+import { trendOf } from '../buildguide/insights'
+import { SetStrip } from '../components/SetStrip'
 import { HowItWorks, MoreOptions } from '../components/MoreOptions'
 import { useStoredState, withDefaults } from '../useStoredState'
 import { formatAge, formatPercent } from '../format'
 
 interface BuildGuideSettings {
-  /** Only count fights where the player's item power was near this; null for every fight. */
-  itemPower: number | null
   role: Role
   /** A weapon type within the role, or 'all'. */
   sub: string
@@ -35,31 +32,20 @@ interface BuildGuideSettings {
 }
 
 const DEFAULTS: BuildGuideSettings = {
-  itemPower: null,
   role: 'dps',
   sub: 'all',
   hands: 'any',
   fight: 'all',
   sort: 'recommended',
 }
-const IP_PRESETS = [800, 900, 1000, 1100, 1200, 1300, 1400]
 
 /** Cards shown before "Show more": a whole role can have a few hundred builds. */
 const CARDS_SHOWN = 30
 
-/** Icons are drawn at one tier: the kill data says which items, and the item power says how strong. */
-const iconId = (base: string) => `T6_${base}`
-
-const FIGHT_LABELS = { s: 'Solo', m: 'Small group', l: 'Large' } as const
-
-function buildKey(r: BuildRow): string {
-  return `${r.weapon.base}|${r.usual ? 'usual' : r.gear.map((g) => g.base).join('|')}`
-}
-
 export default function BuildGuidePage({ server }: { server: ServerId }) {
   const [settings, setSettings] = useStoredState<BuildGuideSettings>(
-    // v7: builds come from kill data alone, with no prices.
-    'albion-tools.buildguide.settings.v7',
+    // v8: one card per weapon, with sets per item power bracket instead of an item power picker.
+    'albion-tools.buildguide.settings.v8',
     DEFAULTS,
     withDefaults(DEFAULTS),
   )
@@ -80,40 +66,22 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
     [settings.role, sub, settings.hands],
   )
   const { summary, error: metaError } = useMeta(server)
+  const community = useCommunityPicks()
 
-  // Item power is only in kills recorded since the tracker started saving it.
-  const hasItemPower = useMemo(
-    () => !!summary && Object.values(summary.weapons).some((w) => Object.keys(w.stats).some((k) => k.length > 1)),
-    [summary],
-  )
   const [rows, quiet] = useMemo(() => {
     if (!summary) return [[], []] as const
-    const filter = statsFilter(settings.fight, settings.itemPower)
-    const list: BuildRow[] = []
+    const list: WeaponRow[] = []
     const none: string[] = []
     for (const w of weapons) {
-      const builds = buildsFor(w, summary, filter)
-      if (builds.length) list.push(...builds)
+      const r = weaponRow(w, summary, settings.fight)
+      if (r) list.push(r)
       else none.push(w.name)
     }
     return [rankBuilds(list, settings.sort), none] as const
-  }, [weapons, summary, settings.fight, settings.itemPower, settings.sort])
+  }, [weapons, summary, settings.fight, settings.sort])
 
   return (
     <main className="panel">
-      <div className="target-row">
-        <span className="budget-input">Your item power</span>
-        <div className="chips" role="group" aria-label="Item power">
-          <button className={settings.itemPower === null ? 'active' : ''} onClick={() => set({ itemPower: null })}>
-            Any
-          </button>
-          {IP_PRESETS.map((ip) => (
-            <button key={ip} className={settings.itemPower === ip ? 'active' : ''} onClick={() => set({ itemPower: ip })}>
-              {ip}
-            </button>
-          ))}
-        </div>
-      </div>
       <div className="toolbar">
         <div className="filters">
           <label>
@@ -193,16 +161,13 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
       {!summary && !metaError ? (
         <p className="hint">Loading recent kills…</p>
       ) : summary && !rows.length ? (
-        <p className="hint">
-          {settings.itemPower && !hasItemPower
-            ? 'Item power is recorded for kills from 8 October onward, so this fills in as new kills come in. Pick Any for now.'
-            : 'No recent fights match these filters. Try Any item power or All fights.'}
-        </p>
+        <p className="hint">No recent fights match these filters. Try All fights.</p>
       ) : (
         <ol className="build-cards">
           {rows.slice(0, cardLimit).map((r, i) => {
-            const key = buildKey(r)
+            const key = r.weapon.base
             const open = selected === key
+            const trend = summary ? trendOf(key, summary) : null
             return (
               <li key={key} className={`build-card${open ? ' open' : ''}`}>
                 <button className="build-head" aria-expanded={open} onClick={() => setSelected(open ? null : key)}>
@@ -210,74 +175,39 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                     <span className="muted">{i + 1}</span>
                     <strong>{r.weapon.name}</strong>
                     {r.weapon.twoHanded && <span className="tag-2h">2H</span>}
+                    {trend && (
+                      <span
+                        className={`tag-trend ${trend.dir}`}
+                        title={`Share of fights over the last 2 days is ${trend.ratio.toFixed(1)}× its share over the days before`}
+                      >
+                        {trend.dir === 'up' ? '▲ Rising' : '▼ Falling'}
+                      </span>
+                    )}
                   </span>
                   <span className="build-price" title={`${r.wins} kills, ${r.losses} deaths`}>
                     <strong>{formatPercent(r.wins / r.fights, 0)}</strong>
                     <small>win rate</small>
                   </span>
-                  <span className="build-strip">
-                    {[r.weapon, ...r.gear].map((item, n) => (
-                      <span key={item.base} className="strip-item" title={`${n ? SLOT_LABELS[r.gear[n - 1].slot] : 'Weapon'}: ${item.name}`}>
-                        <ItemIcon id={iconId(item.base)} size={40} />
-                      </span>
-                    ))}
-                  </span>
+                  {r.best && <SetStrip weapon={r.weapon} gear={r.best.gear} size={40} />}
                   <span className="build-stats">
-                    <span title="Recent fights where this build got a kill or died">{r.fights.toLocaleString()} fights</span>
-                    {r.itemPower && <span title="Average item power of the players wearing it">~{r.itemPower} IP</span>}
-                    {r.usual && (
+                    <span title="Recent fights where this weapon got a kill or died">{r.fights.toLocaleString()} fights</span>
+                    {r.itemPower && <span title="Average item power of the players using it">~{r.itemPower} IP</span>}
+                    {r.best && !r.best.usual && (
+                      <span title="Win rate of the set shown, the best of the loadouts with enough fights">
+                        set {formatPercent(r.best.wins / r.best.fights, 0)} over {r.best.fights}
+                      </span>
+                    )}
+                    {r.best?.usual && (
                       <span
                         className="tag-avg"
-                        title={`No single loadout has ${MIN_FIGHTS} fights yet, so this is the item most often worn with the weapon in each slot, with the weapon's own record`}
+                        title={`No single loadout has ${MIN_FIGHTS} fights yet, so this is the item most often worn with the weapon in each slot`}
                       >
                         usual gear
                       </span>
                     )}
                   </span>
                 </button>
-                {open && summary && (
-                  <div className="build-body">
-                    <table className="breakdown set">
-                      <tbody>
-                        {r.gear.map((g) => {
-                          const others = alternatives(r.weapon, summary, g.slot).filter((a) => a.item.base !== g.base)
-                          return (
-                            <tr key={g.slot}>
-                              <td>
-                                <span className="slot">{SLOT_LABELS[g.slot]}</span>
-                                <span className="item-cell">
-                                  <ItemIcon id={iconId(g.base)} size={24} />
-                                  {g.name}
-                                </span>
-                              </td>
-                              <td className="hint">
-                                {others.length > 0 &&
-                                  `Also worn: ${others
-                                    .slice(0, 3)
-                                    .map((a) => `${a.item.name} ${formatPercent(a.share, 0)}`)
-                                    .join(', ')}`}
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                    <table className="breakdown">
-                      <tbody>
-                        {(['s', 'm', 'l'] as const).map((size) => {
-                          const [w, l] = r.bySize[size]
-                          return w + l > 0 ? (
-                            <tr key={size}>
-                              <td>{FIGHT_LABELS[size]}</td>
-                              <td className="num">{(w + l).toLocaleString()} fights</td>
-                              <td className="num">{formatPercent(w / (w + l), 0)} win rate</td>
-                            </tr>
-                          ) : null
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                {open && summary && <WeaponDetail row={r} summary={summary} community={community} />}
               </li>
             )
           })}
@@ -292,15 +222,17 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
         <p className="hint">No recent fights for: {quiet.join(', ')}.</p>
       )}
       <HowItWorks>
-        Builds are whole loadouts (weapon, off-hand, helmet, armour, shoes and cape) seen together in recent kills from the
-        official killboard, which every Albion killboard site draws on. Every attacker in a kill counts a win for their
-        loadout and the victim a loss, split by fight size and by the player's item power. Up to {BUILDS_PER_WEAPON}{' '}
-        loadouts per weapon with at least {MIN_FIGHTS} fights are shown; weapons without one show the item most often worn
-        with them in each slot, marked usual gear. Picking an item power counts only fights where the player was within 100
-        of it. The killboard only records fights where someone died, so ganks count as wins: treat win rates as a guide.
-        Rankings pull win rates toward 50% as if each build had {PRIOR_FIGHTS} more fights, so a lucky few don't top the
-        list. Recommended weighs win rate and how much it's played equally. Weapons are grouped by the role they usually
-        play (the usual community split).
+        Everything here comes from recent kills on the official killboard, which every Albion killboard site draws on.
+        Every attacker in a kill counts a win for their weapon and loadout (off-hand, helmet, armour, shoes and cape) and
+        the victim a loss, split by fight size and by the player's average item power. Each weapon shows its best loadout
+        with at least {MIN_FIGHTS} fights, and its best at each item power level with at least {MIN_BRACKET_FIGHTS}; weapons
+        without one show the item most often worn with them in each slot, marked usual gear. Best means the highest win
+        rate after pulling it toward 50% as if each loadout had {PRIOR_FIGHTS} more fights, so a lucky few don't win. The
+        killboard only records fights where someone died, so ganks count as wins: treat win rates as a guide. The killboard
+        doesn't record skills, so the skill lists show every option from the game files, ranked by how often community
+        builds on Albion Free Market pick them. Matchups count killing blows between two weapons. Rising and falling
+        compare a weapon's share of fights over the last two days with the days before. Recommended weighs win rate and
+        how much it's played equally. Weapons are grouped by the role they usually play.
       </HowItWorks>
     </main>
   )

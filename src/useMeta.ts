@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { MetaSummary } from './meta/aggregate'
-import { metaUrl } from './buildguide/meta'
+import { COMMUNITY_URL, metaUrl } from './buildguide/meta'
+import type { CommunityPicks } from './meta/community'
 import type { ServerId } from './api/servers'
 
 interface MetaState {
@@ -29,4 +30,18 @@ export function useMeta(server: ServerId): MetaState {
 
   // Don't show another server's data while the new one loads.
   return state.server === server ? state : { summary: null, error: null }
+}
+
+/** Skill picks from community builds; null until loaded or if unavailable (the guide works without). */
+export function useCommunityPicks(): CommunityPicks | null {
+  const [picks, setPicks] = useState<CommunityPicks | null>(null)
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch(COMMUNITY_URL, { signal: controller.signal })
+      .then((res) => (res.ok ? (res.json() as Promise<CommunityPicks>) : null))
+      .then((p) => setPicks(p))
+      .catch(() => {})
+    return () => controller.abort()
+  }, [])
+  return picks
 }

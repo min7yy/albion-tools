@@ -22,3 +22,6 @@ export const SLOT_LABELS: Record<GearSlot | 'MainHand', string> = {
   Shoes: 'Shoes',
   Cape: 'Cape',
 }
+
+/** Icons are drawn at one tier: the kill data says which items, and the item power says how strong. */
+export const iconId = (base: string) => `T6_${base}`

@@ -2,7 +2,8 @@ name: Collect kill meta
 
 # Polls recent kills from the official API nonstop and publishes a rolling week of weapon use,
 # gear pairings and whole loadouts (by fight size and item power) to the meta-data branch, which
-# the site reads. Each run collects for 50 minutes, publishes, then starts the next run itself;
+# the site reads, plus skill picks from Albion Free Market community builds (refreshed daily).
+# Each run collects for 50 minutes, publishes, then starts the next run itself;
 # the schedule only restarts the chain if a run fails (GitHub runs scheduled jobs late or not at all).
 on:
   schedule:
@@ -32,6 +33,11 @@ jobs:
           if git fetch --depth=1 origin meta-data; then
             git archive FETCH_HEAD | tar -x -C meta-out
           fi
+      - name: Collect community skill picks
+        # Daily at most; a failure here keeps yesterday's picks and doesn't stop the kills.
+        continue-on-error: true
+        timeout-minutes: 5
+        run: node --experimental-strip-types scripts/collect-community.ts meta-out
       - name: Collect kills
         env:
           COLLECT_MINUTES: 50

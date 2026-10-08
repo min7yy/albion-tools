@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { filterStats, statKey, type MetaSummary } from '../meta/aggregate'
-import { alternatives, buildsFor, rankBuilds, shrunkWinRate, statsFilter, type BuildRow } from './loadouts'
+import { alternatives, rankBuilds, shrunkWinRate, weaponRow } from './loadouts'
 import type { Weapon } from './weapons'
 
 const sword: Weapon = { base: 'MAIN_SWORD', name: 'Broadsword', sub: 'sword', twoHanded: false, variants: [] }
@@ -45,30 +45,55 @@ describe('stats keys', () => {
   })
 })
 
-describe('buildsFor', () => {
-  it('keeps complete loadouts with enough fights, most worn first, with their item power', () => {
-    const all = buildsFor(sword, summary, statsFilter('all', null))
-    expect(all.map((b) => [b.gear[0].base, b.fights, b.itemPower])).toEqual([['OFF_SHIELD', 70, 1221]])
-    expect(buildsFor(sword, summary, statsFilter('s', null)).map((b) => b.fights)).toEqual([10])
+describe('weaponRow', () => {
+  it("gives the weapon's record and its best loadout with enough fights", () => {
+    const r = weaponRow(sword, summary, 'all')!
+    expect(r).toMatchObject({ wins: 40, losses: 30, fights: 70 })
+    // The shield set is the only complete loadout with 8+ fights.
+    expect(r.best).toMatchObject({ fights: 70, usual: false, itemPower: 1221 })
+    expect(r.best!.gear[0].base).toBe('OFF_SHIELD')
   })
 
-  it('filters to fights near an item power', () => {
-    // 1200 ± 100 keeps the 1100 and 1200 steps: the large fights only.
-    const [b] = buildsFor(sword, summary, statsFilter('all', 1200))
-    expect(b).toMatchObject({ fights: 60, bySize: { s: [0, 0], m: [0, 0], l: [30, 30] } })
+  it('picks the best set in each item power bracket', () => {
+    const r = weaponRow(sword, summary, 'all')!
+    const by = Object.fromEntries(r.brackets.map((b) => [b.bracket.label, b]))
+    // Under 1000 has no recorded fights; 1000–1199 has the shield set's 10 small fights.
+    expect(by['Under 1000'].set).toBeNull()
+    expect(by['1000–1199'].set).toMatchObject({ fights: 10, wins: 6 })
+    expect(by['1200–1399'].set).toMatchObject({ fights: 60 })
+    expect(by['1000–1199']).toMatchObject({ wins: 40, losses: 30 })
+  })
+
+  it('prefers the better win rate over the more worn set', () => {
+    const s: MetaSummary = {
+      ...summary,
+      weapons: {
+        MAIN_SWORD: {
+          stats: { s1100: [80, 60] },
+          gear: {},
+          builds: [
+            [['OFF_SHIELD', ...plate], { s1100: [50, 50] }],
+            [['OFF_TORCH', ...plate], { s1100: [30, 10] }],
+          ],
+        },
+      },
+    }
+    expect(weaponRow(sword, s, 'all')!.best!.gear[0].base).toBe('OFF_TORCH')
   })
 
   it('has no off-hand slot for two-handed weapons', () => {
-    const [b] = buildsFor(claymore, summary, statsFilter('all', null))
-    expect(b.gear.map((g) => g.slot)).toEqual(['Head', 'Armor', 'Shoes', 'Cape'])
-    expect(b).toMatchObject({ wins: 9, losses: 1, usual: false })
+    expect(weaponRow(claymore, summary, 'all')).toBeNull()
+    const s: MetaSummary = { ...summary, weapons: { ...summary.weapons, '2H_CLAYMORE': { ...summary.weapons['2H_CLAYMORE'], stats: { m1100: [9, 1] } } } }
+    const r = weaponRow(claymore, s, 'all')!
+    expect(r.best!.gear.map((g) => g.slot)).toEqual(['Head', 'Armor', 'Shoes', 'Cape'])
+    expect(r.best).toMatchObject({ wins: 9, losses: 1, usual: false })
   })
 
   it("falls back to the weapon's usual gear and record when no loadout has enough fights", () => {
-    const [b] = buildsFor(bow, summary, statsFilter('all', null))
-    expect(b).toMatchObject({ usual: true, fights: 6, itemPower: 1350 })
-    expect(b.gear.map((g) => g.base)).toEqual(['HEAD_LEATHER_SET1', 'ARMOR_LEATHER_SET1', 'SHOES_LEATHER_SET1', 'CAPE'])
-    expect(buildsFor(bow, summary, statsFilter('l', null))).toEqual([])
+    const r = weaponRow(bow, summary, 'all')!
+    expect(r.best).toMatchObject({ usual: true, fights: 6, itemPower: 1350 })
+    expect(r.best!.gear.map((g) => g.base)).toEqual(['HEAD_LEATHER_SET1', 'ARMOR_LEATHER_SET1', 'SHOES_LEATHER_SET1', 'CAPE'])
+    expect(weaponRow(bow, summary, 'l')).toBeNull()
   })
 
   it('pulls small samples toward 50%', () => {
@@ -85,16 +110,10 @@ describe('buildsFor', () => {
 })
 
 describe('rankBuilds', () => {
-  const row = (name: string, wins: number, fights: number): BuildRow => ({
+  const row = (name: string, wins: number, fights: number) => ({
     weapon: { ...sword, name },
-    gear: [],
-    wins,
-    losses: fights - wins,
     fights,
     winRate: shrunkWinRate(wins, fights),
-    itemPower: null,
-    bySize: { s: [0, 0], m: [0, 0], l: [0, 0] },
-    usual: false,
   })
   const rows = [row('A', 70, 100), row('B', 500, 1000), row('C', 5, 20)]
   const names = (sort: Parameters<typeof rankBuilds>[1]) => rankBuilds(rows, sort).map((r) => r.weapon.name)
