@@ -39,7 +39,7 @@ const tiers: Weapon['variants'] = [
   [8, 3, 1400],
 ]
 const weapon: Weapon = { base: '2H_CLAYMORE', name: 'Claymore', sub: 'sword', twoHanded: true, variants: tiers }
-const gear = (slot: Gear['slot'], base: string): Gear => ({ base, name: base, slot, variants: tiers })
+const gear = (slot: Gear['slot'], base: string): Gear => ({ base, name: base, slot, sub: 'other', variants: tiers })
 const gearSlots = [[gear('Head', 'HEAD_X')], [gear('Armor', 'ARMOR_X')], [gear('Shoes', 'SHOES_X')], [gear('Cape', 'CAPE_X')]]
 const id = (base: string, tier: number, ench = 0) => `T${tier}_${base}${ench ? `@${ench}` : ''}`
 

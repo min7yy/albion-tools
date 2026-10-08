@@ -7,6 +7,8 @@ export interface Gear {
   base: string
   name: string
   slot: GearSlot
+  /** The game's market subcategory, e.g. leather_helmet or shieldtype. */
+  sub: string
   /** [tier, enchantment, item power at normal quality]. */
   variants: [number, number, number][]
 }

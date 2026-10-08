@@ -65,7 +65,7 @@ for (const item of list(items.equipmentitem)) {
   const slot = GEAR_SLOTS[item['@slottype']]
   if (!slot || !item.craftingrequirements || !item['@itempower']) continue
   const base = id.replace(/^T\d_/, '')
-  if (!gear.has(base)) gear.set(base, { base, name: (names.get(id) ?? id).replace(TIER_PREFIX, ''), slot, variants: [] })
+  if (!gear.has(base)) gear.set(base, { base, name: (names.get(id) ?? id).replace(TIER_PREFIX, ''), slot, sub: item['@shopsubcategory1'], variants: [] })
   const g = gear.get(base)
   const tier = Number(item['@tier'])
   g.variants.push([tier, 0, Number(item['@itempower'])])

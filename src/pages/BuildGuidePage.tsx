@@ -10,6 +10,7 @@ import { BUILDS_PER_WEAPON, SORT_MODES, loadoutsFor, rankBuilds, type BuildRow, 
 import { useMeta } from '../useMeta'
 import { SLOT_LABELS, gearItemIds, type Gear } from '../buildguide/gear'
 import { usualGear } from '../buildguide/sets'
+import { browsePlan, type NeededPrice } from '../buildguide/browsePlan'
 import { BAND, buildSet, equivalenceLadder, noSetReason, type SetPick } from '../buildguide/target'
 import { specFromLevels } from '../buildguide/mastery'
 import { ItemIcon } from '../components/ItemIcon'
@@ -234,17 +235,15 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
     [missing, prices.length, gearFor, lookup, offers, spec, settings.target],
   )
 
-  // Pieces on screen priced from an older listing or an average, per city, to look up in game.
-  const needed = useMemo(() => {
-    const byCity = new Map<string, Set<string>>()
+  // Market pages to open in game to refresh the pieces on screen priced from older data.
+  const plan = useMemo(() => {
+    const needed: NeededPrice[] = []
     for (const r of rows.slice(0, cardLimit)) {
       for (const { item, option } of r.set.picks) {
-        if (!option.average && !option.archived) continue
-        if (!byCity.has(option.city)) byCity.set(option.city, new Set())
-        byCity.get(option.city)!.add(`${item.name} ${tierLabel(option.tier, option.ench)}`)
+        if (option.average || option.archived) needed.push({ city: option.city, item, tier: option.tier, ench: option.ench })
       }
     }
-    return new Map([...byCity].sort((a, b) => a[0].localeCompare(b[0])).map(([city, items]) => [city, [...items].sort()]))
+    return browsePlan(needed)
   }, [rows, cardLimit])
 
   const toggleCity = (city: string) =>
@@ -402,7 +401,7 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
       {error && <p className="error">{error}</p>}
       {metaError && <p className="error">{metaError}. Sets are built from the gear seen in recent kills, so they can't load.</p>}
 
-      {prices.length > 0 && <UploaderHelp needed={needed} unpriced={missing.map((w) => w.name)} />}
+      {prices.length > 0 && <UploaderHelp plan={plan} unpriced={missing} />}
       {(loading && !prices.length) || (!summary && !metaError) ? (
         <p className="hint">Loading prices for {weapons.length} weapons and their usual gear…</p>
       ) : !rows.length ? (
