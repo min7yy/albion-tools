@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /event/
+Disallow: /us/event/
+Disallow: /eu/event/
+Disallow: /as/event/
+Disallow: /sitemap.xml
