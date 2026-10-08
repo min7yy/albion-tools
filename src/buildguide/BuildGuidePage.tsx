@@ -20,7 +20,8 @@ import { trendOf } from './insights'
 import { SetStrip } from './SetStrip'
 import { HowItWorks, MoreOptions } from '../components/MoreOptions'
 import { useStoredState, withDefaults } from '../hooks/useStoredState'
-import { formatAge, formatPercent } from '../lib/format'
+import { formatAge, formatDay, formatPercent } from '../lib/format'
+import { LOOKBACK_FIGHTS } from '../meta/aggregate'
 
 interface BuildGuideSettings {
   role: Role
@@ -130,7 +131,7 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
         {summary && (
           <div className="refresh">
             <span className="hint">
-              {summary.events.toLocaleString()} kills since {summary.from}, updated {formatAge(new Date(summary.updatedAt))}
+              {summary.events.toLocaleString()} kills since {formatDay(summary.from)}, updated {formatAge(new Date(summary.updatedAt))}
             </span>
           </div>
         )}
@@ -192,6 +193,14 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                   <span className="build-stats">
                     <span title="Recent fights where this weapon got a kill or died">{r.fights.toLocaleString()} fights</span>
                     {r.itemPower && <span title="Average item power of the players using it">~{r.itemPower} IP</span>}
+                    {summary?.weapons[key]?.from && (
+                      <span
+                        className="tag-since"
+                        title={`Too few fights in the last week, so this counts every fight since ${formatDay(summary.weapons[key].from!)}`}
+                      >
+                        since {formatDay(summary.weapons[key].from!)}
+                      </span>
+                    )}
                     {r.best && !r.best.usual && (
                       <span title="Win rate of the set shown, the best of the loadouts with enough fights">
                         set {formatPercent(r.best.wins / r.best.fights, 0)} over {r.best.fights}
@@ -222,15 +231,18 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
         <p className="hint">No recent fights for: {quiet.join(', ')}.</p>
       )}
       <HowItWorks>
-        Everything here comes from recent kills on the official killboard, which every Albion killboard site draws on.
+        Everything here comes from the last week of kills on the official killboard, which every Albion killboard site
+        draws on; a weapon with under {LOOKBACK_FIGHTS} fights in that week counts older kills too (up to four weeks) and
+        is marked with the date it counts from.
         Every attacker in a kill counts a win for their weapon and loadout (off-hand, helmet, armour, shoes and cape) and
         the victim a loss, split by fight size and by the player's average item power. Each weapon shows its best loadout
         with at least {MIN_FIGHTS} fights, and its best at each item power level with at least {MIN_BRACKET_FIGHTS}; weapons
         without one show the item most often worn with them in each slot, marked usual gear. Best means the highest win
         rate after pulling it toward 50% as if each loadout had {PRIOR_FIGHTS} more fights, so a lucky few don't win. The
         killboard only records fights where someone died, so ganks count as wins: treat win rates as a guide. The killboard
-        doesn't record skills, so the skill lists show every option from the game files, ranked by how often community
-        builds on Albion Free Market pick them. Matchups count killing blows between two weapons. Rising and falling
+        doesn't record skills, so the recommended skill on each key is the one community builds on Albion Free Market
+        pick most (every option comes from the game files). Recommended potions and food show what players brought in
+        kills alongside the community's pick. Matchups count killing blows between two weapons. Rising and falling
         compare a weapon's share of fights over the last two days with the days before. Recommended weighs win rate and
         how much it's played equally. Weapons are grouped by the role they usually play.
       </HowItWorks>

@@ -32,3 +32,11 @@ export function formatPerDay(n: number | null | undefined): string {
   if (n === 0) return '0'
   return n < 10 ? n.toFixed(1) : Math.round(n).toLocaleString()
 }
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** A YYYY-MM-DD date as "26 Sep". */
+export function formatDay(date: string): string {
+  const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(date)
+  return m ? `${Number(m[2])} ${MONTHS[Number(m[1]) - 1]}` : date
+}

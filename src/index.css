@@ -227,3 +227,17 @@ table.breakdown.ladder-sets td.num small { display: block; }
 .tip-title { font-size: 0.85rem; }
 .tip-meta { color: var(--muted); font-size: 0.75rem; }
 .tip-desc { white-space: pre-line; color: var(--text); }
+
+/* Build guide: also worn and consumables */
+.detail-head-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.link-button { all: unset; cursor: pointer; color: var(--accent); font-size: 0.8rem; }
+.link-button:hover { text-decoration: underline; }
+.link-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.tag-since { font-size: 0.7rem; color: var(--accent); white-space: nowrap; }
+.worn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.worn-slot { display: grid; gap: 6px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.worn-slot .slot { margin: 0; }
+.worn-items { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.item-chip { display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; }
+.item-chip small { display: block; color: var(--muted); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
+.agree { font-size: 0.72rem; }

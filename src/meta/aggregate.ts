@@ -15,7 +15,11 @@ export type TrackedSlot = GearSlot | ExtraSlot
 const TRACKED_SLOTS: TrackedSlot[] = [...GEAR_SLOTS, ...EXTRA_SLOTS]
 
 /** Days of kill data kept; older days drop off. */
-export const WINDOW_DAYS = 7
+export const WINDOW_DAYS = 28
+/** Days the summary covers for every weapon. */
+export const SUMMARY_DAYS = 7
+/** A weapon with fewer fights than this in SUMMARY_DAYS looks further back, a day at a time. */
+export const LOOKBACK_FIGHTS = 100
 /** Gear items kept per weapon and slot each day, to bound the file size. */
 export const GEAR_PER_DAY = 20
 /** Gear items per weapon and slot in the published summary. */
@@ -324,7 +328,7 @@ export function pruneState(state: MetaState, now: Date): void {
   }
 }
 
-/** What the site loads: the whole window summed, with the most common gear per weapon. */
+/** What the site loads: the last SUMMARY_DAYS summed per weapon (further back for rarely seen weapons). */
 export interface MetaSummary {
   server: string
   updatedAt: string
@@ -347,75 +351,87 @@ export interface WeaponSummary {
   /** Opponent weapons it met most, as [opponent, killing blows on it, deaths to it]. */
   matchups?: [string, number, number][]
   areas?: Record<string, [number, number]>
+  /** First day counted, when the weapon had too few fights in the summary window and looked further back. */
+  from?: string
+}
+
+/** Newest first: the last SUMMARY_DAYS, then older days until the weapon has LOOKBACK_FIGHTS. */
+function daysFor(weapon: string, state: MetaState, newestFirst: string[]): string[] {
+  const used: string[] = []
+  let fights = 0
+  // Older days count only up to the last one the weapon was actually seen on.
+  let keep = SUMMARY_DAYS
+  for (const date of newestFirst) {
+    if (used.length >= SUMMARY_DAYS && fights >= LOOKBACK_FIGHTS) break
+    used.push(date)
+    const n = totalFights(state.days[date].weapons[weapon] ?? {})
+    fights += n
+    if (n) keep = Math.max(keep, used.length)
+  }
+  return used.slice(0, keep)
+}
+
+function summarizeWeapon(weapon: string, state: MetaState, days: string[], dates: string[]): WeaponSummary {
+  const stats: WeaponStats = {}
+  const gear: Partial<Record<TrackedSlot, Record<string, number>>> = {}
+  const builds: Record<string, WeaponStats> = {}
+  const matchups: Record<string, [number, number]> = {}
+  const areas: Record<string, [number, number]> = {}
+  let perf: PerfStats | undefined
+  for (const date of days) {
+    const day = state.days[date]
+    sumPairs(stats, day.weapons[weapon] ?? {})
+    for (const [key, s] of Object.entries(day.builds?.[weapon] ?? {})) sumPairs((builds[key] ??= {}), s)
+    for (const slot of TRACKED_SLOTS) {
+      for (const [item, n] of Object.entries(day.gear[weapon]?.[slot] ?? {})) {
+        const counts = (gear[slot] ??= {})
+        counts[item] = (counts[item] ?? 0) + n
+      }
+    }
+    const p = day.perf?.[weapon]
+    if (p) {
+      perf ??= [0, 0, 0, 0, 0]
+      p.forEach((v, i) => (perf![i] += v))
+    }
+    sumPairs(matchups, day.matchups?.[weapon] ?? {})
+    sumPairs(areas, day.areas?.[weapon] ?? {})
+  }
+  const top: WeaponSummary['gear'] = {}
+  for (const slot of TRACKED_SLOTS) if (gear[slot]) top[slot] = Object.entries(topEntries(gear[slot], GEAR_IN_SUMMARY))
+  const loadouts = Object.entries(summaryBuilds(builds)).map(([key, s]): [string[], WeaponStats] => [key.split('|'), s])
+  const opponents = Object.entries(topPairs(matchups, MATCHUPS_IN_SUMMARY)).map(
+    ([opp, [w, l]]): [string, number, number] => [opp, w, l],
+  )
+  const oldest = days[days.length - 1]
+  return {
+    stats,
+    gear: top,
+    ...(loadouts.length ? { builds: loadouts } : {}),
+    trend: dates.map((date) => filterStats(state.days[date].weapons[weapon] ?? {})),
+    ...(perf ? { perf } : {}),
+    ...(opponents.length ? { matchups: opponents } : {}),
+    ...(Object.keys(areas).length ? { areas } : {}),
+    ...(oldest < dates[0] ? { from: oldest } : {}),
+  }
 }
 
 export function summarize(state: MetaState, server: string, now: Date): MetaSummary {
-  const dates = Object.keys(state.days).sort()
-  const stats: Record<string, WeaponStats> = {}
-  const gear: GearCounts = {}
-  const builds: BuildCounts = {}
-  const perf: Record<string, PerfStats> = {}
-  const matchups: MatchupCounts = {}
-  const areas: AreaCounts = {}
-  const trend: Record<string, [number, number][]> = {}
-  let events = 0
-  dates.forEach((date, d) => {
-    const day = state.days[date]
-    events += day.events
-    for (const [weapon, s] of Object.entries(day.weapons)) {
-      sumPairs((stats[weapon] ??= {}), s)
-      const series = (trend[weapon] ??= dates.map((): [number, number] => [0, 0]))
-      series[d] = filterStats(s)
-    }
-    for (const [weapon, list] of Object.entries(day.builds ?? {})) {
-      const total = (builds[weapon] ??= {})
-      for (const [key, s] of Object.entries(list)) sumPairs((total[key] ??= {}), s)
-    }
-    for (const [weapon, slots] of Object.entries(day.gear)) {
-      const total = (gear[weapon] ??= {})
-      for (const slot of TRACKED_SLOTS) {
-        for (const [item, n] of Object.entries(slots[slot] ?? {})) {
-          const counts = (total[slot] ??= {})
-          counts[item] = (counts[item] ?? 0) + n
-        }
-      }
-    }
-    for (const [weapon, p] of Object.entries(day.perf ?? {})) {
-      const total = (perf[weapon] ??= [0, 0, 0, 0, 0])
-      p.forEach((v, i) => (total[i] += v))
-    }
-    for (const [weapon, opponents] of Object.entries(day.matchups ?? {})) sumPairs((matchups[weapon] ??= {}), opponents)
-    for (const [weapon, a] of Object.entries(day.areas ?? {})) sumPairs((areas[weapon] ??= {}), a)
-  })
+  const newestFirst = Object.keys(state.days).sort().reverse()
+  // The summary window; weapons with few fights in it look further back (see daysFor).
+  const dates = newestFirst.slice(0, SUMMARY_DAYS).reverse()
+  const names = new Set<string>()
+  for (const date of newestFirst) for (const weapon of Object.keys(state.days[date].weapons)) names.add(weapon)
   const weapons: MetaSummary['weapons'] = {}
-  for (const weapon of Object.keys(stats).sort()) {
-    const top: WeaponSummary['gear'] = {}
-    for (const slot of TRACKED_SLOTS) {
-      const counts = gear[weapon]?.[slot]
-      if (counts) top[slot] = Object.entries(topEntries(counts, GEAR_IN_SUMMARY))
-    }
-    const loadouts = Object.entries(summaryBuilds(builds[weapon] ?? {})).map(
-      ([key, s]): [string[], WeaponStats] => [key.split('|'), s],
-    )
-    const opponents = Object.entries(topPairs(matchups[weapon] ?? {}, MATCHUPS_IN_SUMMARY)).map(
-      ([opp, [w, l]]): [string, number, number] => [opp, w, l],
-    )
-    weapons[weapon] = {
-      stats: stats[weapon],
-      gear: top,
-      ...(loadouts.length ? { builds: loadouts } : {}),
-      trend: trend[weapon],
-      ...(perf[weapon] ? { perf: perf[weapon] } : {}),
-      ...(opponents.length ? { matchups: opponents } : {}),
-      ...(areas[weapon] ? { areas: areas[weapon] } : {}),
-    }
+  for (const weapon of [...names].sort()) {
+    const w = summarizeWeapon(weapon, state, daysFor(weapon, state, newestFirst), dates)
+    if (totalFights(w.stats)) weapons[weapon] = w
   }
   return {
     server,
     updatedAt: now.toISOString(),
     from: dates[0] ?? '',
     to: dates[dates.length - 1] ?? '',
-    events,
+    events: dates.reduce((n, date) => n + state.days[date].events, 0),
     dates,
     weapons,
   }
