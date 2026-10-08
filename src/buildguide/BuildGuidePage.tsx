@@ -20,7 +20,7 @@ import { trendOf } from './insights'
 import { SetStrip } from './SetStrip'
 import { HowItWorks } from '../components/MoreOptions'
 import { useStoredState, withDefaults } from '../hooks/useStoredState'
-import { formatAge, formatDay, formatPercent } from '../lib/format'
+import { formatAge, formatCount, formatDay, formatPercent } from '../lib/format'
 import { LOOKBACK_FIGHTS } from '../meta/aggregate'
 
 interface BuildGuideSettings {
@@ -193,13 +193,13 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                       </span>
                     )}
                   </span>
-                  <span className="build-price" title={`${r.wins} kills, ${r.losses} deaths`}>
+                  <span className="build-price" title={`${formatCount(r.wins)} kills (each split between everyone who took part), ${formatCount(r.losses)} deaths`}>
                     <strong>{formatPercent(r.wins / r.fights, 0)}</strong>
                     <small>win rate</small>
                   </span>
                   {r.best && <SetStrip weapon={r.weapon} gear={r.best.gear} size={40} />}
                   <span className="build-stats">
-                    <span title="Recent fights where this weapon got a kill or died">{r.fights.toLocaleString()} fights</span>
+                    <span title="Kills it took part in (each counted as its share) plus deaths">{formatCount(r.fights)} fights</span>
                     {r.itemPower && <span title="Average item power of the players using it">~{r.itemPower} IP</span>}
                     {summary?.weapons[key]?.from && (
                       <span
@@ -211,7 +211,7 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
                     )}
                     {r.best && !r.best.usual && (
                       <span title="Win rate of the set shown, the best of the loadouts with enough fights">
-                        set {formatPercent(r.best.wins / r.best.fights, 0)} over {r.best.fights}
+                        set {formatPercent(r.best.wins / r.best.fights, 0)} over {formatCount(r.best.fights)}
                       </span>
                     )}
                     {r.best?.usual && (
@@ -247,7 +247,9 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
         with at least {MIN_FIGHTS} fights, and its best at each item power level with at least {MIN_BRACKET_FIGHTS}; weapons
         without one show the item most often worn with them in each slot, marked usual gear. Best means the highest win
         rate after pulling it toward 50% as if each loadout had {PRIOR_FIGHTS} more fights, so a lucky few don't win. The
-        killboard only records fights where someone died, so ganks count as wins: treat win rates as a guide. The killboard
+        killboard only records fights where someone died. Each kill counts as one win shared by everyone who took part
+        (five players ganking one each get a fifth), and each death as one loss, so win rates average 50% across all
+        weapons and ganks don't inflate them. The killboard
         doesn't record skills, so the recommended skill on each key is the one most picked in Albion Free Market builds
         that have more upvotes than downvotes and were made or edited in the last year (every option comes from the game
         files). How to play is written from the same data: where the weapon wins by fight size, and what each recommended

@@ -62,7 +62,8 @@ export const IP_STEP = 100
 
 /**
  * [wins, losses] keyed by fight size and the player's item power rounded down to IP_STEP, as in
- * "s1100". Days recorded before item power was tracked use the bare fight size ("s").
+ * "s1100". A death is one loss; a kill is one win split between everyone who took part, so a 5-player
+ * gank gives each 0.2. Days recorded before item power was tracked use the bare fight size ("s").
  */
 export type WeaponStats = Record<string, [number, number]>
 
@@ -113,7 +114,8 @@ export interface DayStats {
 
 /** Rolling state kept between job runs. */
 export interface MetaState {
-  version: 1
+  /** 2: kills split between attackers (version 1 gave every attacker a whole win, so it starts over). */
+  version: 2
   /** Newest event id seen, for the run status. */
   lastEventId: number
   /**
@@ -121,8 +123,6 @@ export interface MetaState {
    * up minutes after later ones), so a "newer than the last id" cutoff would drop them.
    */
   seenIds?: number[]
-  /** Set when loading state saved before seenIds: events at or below it were counted by id cutoff. */
-  seenFloor?: number
   days: Record<string, DayStats>
 }
 
@@ -130,7 +130,7 @@ export interface MetaState {
 export const SEEN_IDS = 10_000
 
 export function emptyState(): MetaState {
-  return { version: 1, lastEventId: 0, days: {} }
+  return { version: 2, lastEventId: 0, days: {} }
 }
 
 export function fightSize(attackers: number): FightSize {
@@ -162,9 +162,9 @@ export function loadoutKey(player: KillPlayer): string {
   }).join('|')
 }
 
-function addPair(stats: WeaponStats, key: string, outcome: 0 | 1) {
+function addPair(stats: WeaponStats, key: string, outcome: 0 | 1, weight = 1) {
   const pair = (stats[key] ??= [0, 0])
-  pair[outcome]++
+  pair[outcome] += weight
 }
 
 function sumPairs(into: WeaponStats, from: WeaponStats) {
@@ -190,13 +190,14 @@ export function weaponOf(player: KillPlayer): string | null {
   return isWeapon(weapon) ? weapon : null
 }
 
-function record(day: DayStats, player: KillPlayer, size: FightSize, outcome: 0 | 1) {
+/** A death counts 1 for the victim; a kill counts 1 split evenly between everyone who took part (`weight`). */
+function record(day: DayStats, player: KillPlayer, size: FightSize, outcome: 0 | 1, weight = 1) {
   const weapon = weaponOf(player)
   if (!weapon) return
   const key = statKey(size, player.AverageItemPower)
-  addPair((day.weapons[weapon] ??= {}), key, outcome)
+  addPair((day.weapons[weapon] ??= {}), key, outcome, weight)
   const builds = ((day.builds ??= {})[weapon] ??= {})
-  addPair((builds[loadoutKey(player)] ??= {}), key, outcome)
+  addPair((builds[loadoutKey(player)] ??= {}), key, outcome, weight)
   const gear = (day.gear[weapon] ??= {})
   for (const slot of TRACKED_SLOTS) {
     const type = player.Equipment?.[slot]?.Type
@@ -221,7 +222,7 @@ export function addEvents(state: MetaState, events: KillEvent[]): number {
   const ids = (state.seenIds ??= [])
   let added = 0
   for (const event of events) {
-    if (seen.has(event.EventId) || event.EventId <= (state.seenFloor ?? 0)) continue
+    if (seen.has(event.EventId)) continue
     seen.add(event.EventId)
     ids.push(event.EventId)
     state.lastEventId = Math.max(state.lastEventId, event.EventId)
@@ -229,7 +230,7 @@ export function addEvents(state: MetaState, events: KillEvent[]): number {
     const day = (state.days[date] ??= { events: 0, weapons: {}, gear: {} })
     const attacking = attackers(event)
     const size = fightSize(event.numberOfParticipants || attacking.length)
-    for (const p of attacking) record(day, p, size, 0)
+    for (const p of attacking) record(day, p, size, 0, 1 / attacking.length)
     record(day, event.Victim, size, 1)
     day.events++
     added++
@@ -290,10 +291,17 @@ export function pruneState(state: MetaState, now: Date): void {
     for (const [weapon, builds] of Object.entries(day.builds ?? {})) {
       day.builds![weapon] = topBuilds(builds, BUILDS_PER_DAY)
     }
-    // Damage, kill fame, matchups and areas were tracked briefly on 8 October; drop them from saved days.
-    for (const old of ['perf', 'matchups', 'areas']) delete (day as unknown as Record<string, unknown>)[old]
+    // Split kills leave long fractions; three decimals keep the files small and the sums exact enough.
+    for (const stats of [...Object.values(day.weapons), ...Object.values(day.builds ?? {}).flatMap((b) => Object.values(b))]) {
+      for (const pair of Object.values(stats)) {
+        pair[0] = round3(pair[0])
+        pair[1] = round3(pair[1])
+      }
+    }
   }
 }
+
+const round3 = (x: number) => Math.round(x * 1000) / 1000
 
 /** What the site loads: the last SUMMARY_DAYS summed per weapon (further back for rarely seen weapons). */
 export interface MetaSummary {

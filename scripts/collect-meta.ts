@@ -50,10 +50,8 @@ async function getPage(base: string, offset: number): Promise<KillEvent[] | null
 async function readState(path: string): Promise<MetaState> {
   try {
     const state = JSON.parse(await readFile(path, 'utf8')) as MetaState
-    if (state.version !== 1) return emptyState()
-    // Saved before event ids were remembered: everything up to the old cutoff is already counted.
-    if (!state.seenIds) state.seenFloor = state.lastEventId
-    return state
+    // Older versions counted kills differently, so their days can't be mixed in.
+    return state.version === emptyState().version ? state : emptyState()
   } catch {
     return emptyState()
   }

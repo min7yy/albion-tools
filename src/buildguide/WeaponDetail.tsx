@@ -8,7 +8,7 @@ import { guideFor, summarize } from './guide'
 import { communityConsumable, extrasOf } from './insights'
 import { ItemIcon } from '../components/ItemIcon'
 import { SpellIcon } from './SpellIcon'
-import { formatPercent } from '../lib/format'
+import { formatCount, formatPercent } from '../lib/format'
 import { SetStrip } from './SetStrip'
 
 const FIGHT_LABELS = { s: 'Solo', m: 'Small group', l: 'Large' } as const
@@ -94,15 +94,15 @@ export function WeaponDetail({ row: r, summary, community }: { row: WeaponRow; s
                     <span className="hint">No set with enough fights yet</span>
                   )}
                 </td>
-                <td className="num" title={b.set ? `This set: ${b.set.wins} kills, ${b.set.losses} deaths` : undefined}>
+                <td className="num" title={b.set ? `This set: ${formatCount(b.set.wins)} kills (shared), ${formatCount(b.set.losses)} deaths` : undefined}>
                   {b.set ? (
                     <>
                       {formatPercent(b.set.wins / b.set.fights, 0)}
-                      <small className="muted"> {b.set.fights} fights</small>
+                      <small className="muted"> {formatCount(b.set.fights)} fights</small>
                     </>
                   ) : (
                     <small className="muted">
-                      weapon {formatPercent(b.wins / (b.wins + b.losses), 0)} over {b.wins + b.losses}
+                      weapon {formatPercent(b.wins / (b.wins + b.losses), 0)} over {formatCount(b.wins + b.losses)}
                     </small>
                   )}
                 </td>
@@ -238,7 +238,7 @@ export function WeaponDetail({ row: r, summary, community }: { row: WeaponRow; s
             return wins + losses > 0 ? (
               <tr key={size}>
                 <td>{FIGHT_LABELS[size]}</td>
-                <td className="num">{(wins + losses).toLocaleString()} fights</td>
+                <td className="num">{formatCount(wins + losses)} fights</td>
                 <td className="num">{formatPercent(wins / (wins + losses), 0)} win rate</td>
               </tr>
             ) : null

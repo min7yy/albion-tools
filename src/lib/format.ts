@@ -40,3 +40,8 @@ export function formatDay(date: string): string {
   const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(date)
   return m ? `${Number(m[2])} ${MONTHS[Number(m[1]) - 1]}` : date
 }
+
+/** A count that can be fractional (kills split between attackers), rounded for display. */
+export function formatCount(n: number): string {
+  return Math.round(n).toLocaleString()
+}
