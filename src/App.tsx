@@ -15,7 +15,7 @@ const PAGES = [
   { id: 'refining', label: 'Refining' },
   { id: 'crafting', label: 'Crafting' },
   { id: 'flips', label: 'Flips' },
-  { id: 'builds', label: 'Build guide' },
+  { id: 'builds', label: 'Meta builds' },
 ] as const
 type PageId = (typeof PAGES)[number]['id']
 

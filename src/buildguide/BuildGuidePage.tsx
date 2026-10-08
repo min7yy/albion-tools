@@ -18,7 +18,7 @@ import { useCommunityPicks, useMeta } from './useMeta'
 import { WeaponDetail } from './WeaponDetail'
 import { trendOf } from './insights'
 import { SetStrip } from './SetStrip'
-import { HowItWorks, MoreOptions } from '../components/MoreOptions'
+import { HowItWorks } from '../components/MoreOptions'
 import { useStoredState, withDefaults } from '../hooks/useStoredState'
 import { formatAge, formatDay, formatPercent } from '../lib/format'
 import { LOOKBACK_FIGHTS } from '../meta/aggregate'
@@ -38,6 +38,41 @@ const DEFAULTS: BuildGuideSettings = {
   hands: 'any',
   fight: 'all',
   sort: 'recommended',
+}
+
+const FIGHT_SHORT: Record<FightFilter, string> = { all: 'All', s: 'Solo', m: '2–5', l: '6+' }
+
+/** A labelled row of buttons where one is picked. */
+function Segmented<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string
+  options: { id: T; label: string; title?: string }[]
+  value: T
+  onChange: (id: T) => void
+}) {
+  return (
+    <div className="field">
+      <span className="field-label">{label}</span>
+      <span className="segmented" role="radiogroup" aria-label={label}>
+        {options.map((o) => (
+          <button
+            key={o.id}
+            role="radio"
+            aria-checked={value === o.id}
+            className={value === o.id ? 'active' : ''}
+            title={o.title}
+            onClick={() => onChange(o.id)}
+          >
+            {o.label}
+          </button>
+        ))}
+      </span>
+    </div>
+  )
 }
 
 /** Cards shown before "Show more": a whole role can have a few hundred builds. */
@@ -85,47 +120,32 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
     <main className="panel">
       <div className="toolbar">
         <div className="filters">
+          <Segmented label="Role" options={ROLES} value={settings.role} onChange={(role) => set({ role, sub: 'all' })} />
+          <Segmented
+            label="Fight size"
+            options={FIGHT_FILTERS.map((f) => ({ id: f.id, label: FIGHT_SHORT[f.id], title: f.label }))}
+            value={settings.fight}
+            onChange={(fight) => set({ fight })}
+          />
+          <Segmented
+            label="Hands"
+            options={[
+              { id: 'any', label: 'Any' },
+              { id: '1h', label: '1H', title: 'One-handed' },
+              { id: '2h', label: '2H', title: 'Two-handed' },
+            ]}
+            value={settings.hands}
+            onChange={(hands) => set({ hands })}
+          />
           <label>
-            Role
-            <span className="segmented" role="radiogroup" aria-label="Role">
-              {ROLES.map((r) => (
-                <button
-                  key={r.id}
-                  role="radio"
-                  aria-checked={settings.role === r.id}
-                  className={settings.role === r.id ? 'active' : ''}
-                  onClick={() => set({ role: r.id, sub: 'all' })}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </span>
-          </label>
-          <label>
-            Fight size
-            <select value={settings.fight} onChange={(e) => set({ fight: e.target.value as FightFilter })}>
-              {FIGHT_FILTERS.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.label}
+            Sort by
+            <select value={settings.sort} onChange={(e) => set({ sort: e.target.value as SortMode })}>
+              {SORT_MODES.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
                 </option>
               ))}
             </select>
-          </label>
-          <label>
-            Sort by
-            <span className="segmented" role="radiogroup" aria-label="Sort by">
-              {SORT_MODES.map((m) => (
-                <button
-                  key={m.id}
-                  role="radio"
-                  aria-checked={settings.sort === m.id}
-                  className={settings.sort === m.id ? 'active' : ''}
-                  onClick={() => set({ sort: m.id })}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </span>
           </label>
         </div>
         {summary && (
@@ -145,18 +165,6 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
           ))}
         </div>
       )}
-      <MoreOptions summary={settings.hands === 'any' ? 'Any weapon' : settings.hands === '1h' ? 'One-handed' : 'Two-handed'}>
-        <div className="option-group">
-          <label>
-            Hands
-            <select value={settings.hands} onChange={(e) => set({ hands: e.target.value as BuildGuideSettings['hands'] })}>
-              <option value="any">Any</option>
-              <option value="1h">One-handed</option>
-              <option value="2h">Two-handed</option>
-            </select>
-          </label>
-        </div>
-      </MoreOptions>
       {metaError && <p className="error">{metaError}</p>}
 
       {!summary && !metaError ? (
@@ -242,7 +250,7 @@ export default function BuildGuidePage({ server }: { server: ServerId }) {
         killboard only records fights where someone died, so ganks count as wins: treat win rates as a guide. The killboard
         doesn't record skills, so the recommended skill on each key is the one community builds on Albion Free Market
         pick most (every option comes from the game files). Recommended potions and food show what players brought in
-        kills alongside the community's pick. Matchups count killing blows between two weapons. Rising and falling
+        kills alongside the community's pick. Rising and falling
         compare a weapon's share of fights over the last two days with the days before. Recommended weighs win rate and
         how much it's played equally. Weapons are grouped by the role they usually play.
       </HowItWorks>

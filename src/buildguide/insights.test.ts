@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MetaSummary, WeaponSummary } from '../meta/aggregate'
-import { areaLabel, areasOf, communityConsumable, extrasOf, matchupsOf, performanceOf, trendOf } from './insights'
+import { communityConsumable, extrasOf, trendOf } from './insights'
 
 const weapon = (trend: [number, number][], extra: Partial<WeaponSummary> = {}): WeaponSummary => ({ stats: {}, gear: {}, trend, ...extra })
 
@@ -35,19 +35,6 @@ describe('trendOf', () => {
 })
 
 describe('weapon insights', () => {
-  it('averages damage and healing per kill and fame per killing blow', () => {
-    expect(performanceOf(weapon([], { perf: [3000, 600, 3, 90000, 2] }))).toEqual({ damage: 1000, healing: 200, killFame: 45000 })
-    expect(performanceOf(weapon([]))).toBeNull()
-  })
-
-  it('lists the weapons it beats and loses to, ignoring tiny samples and unknown items', () => {
-    const { strong, weak } = matchupsOf(
-      weapon([], { matchups: [['2H_BOW', 10, 2], ['MAIN_FIRESTAFF', 1, 9], ['2H_CLAYMORE', 2, 0], ['NOT_A_WEAPON', 9, 0], ['MAIN_SWORD', 4, 3]] }),
-    )
-    expect(strong.map((m) => [m.opponent.name, m.wins, m.losses])).toEqual([['Bow', 10, 2], ['Broadsword', 4, 3]])
-    expect(weak.map((m) => m.opponent.name)).toEqual(['Fire Staff'])
-  })
-
   it('names the consumables brought with it', () => {
     const extras = extrasOf(weapon([], { gear: { Potion: [['POTION_HEAL', 3], ['POTION_NOPE', 1], ['POTION_REVIVE', 1]] } }), 'Potion')
     expect(extras).toEqual([
@@ -56,14 +43,6 @@ describe('weapon insights', () => {
     ])
   })
 
-  it('splits fights by area', () => {
-    expect(areasOf(weapon([], { areas: { OPEN_WORLD: [3, 3], HELLGATE: [1, 1] } }))).toEqual([
-      { area: 'OPEN_WORLD', share: 0.75 },
-      { area: 'HELLGATE', share: 0.25 },
-    ])
-    expect(areaLabel('CORRUPTED_DUNGEON')).toBe('Corrupted dungeons')
-    expect(areaLabel('SOME_NEW_PLACE')).toBe('Some new place')
-  })
 })
 
 describe('communityConsumable', () => {
