@@ -11,12 +11,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
-          mkdir -p probe2; cd probe2
+          mkdir -p probe3; cd probe3
           UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36"
-          for u in builds builds/browse api/builds api/v1/builds api/builds/search build-list sitemap.xml robots.txt; do
-            f=$(echo $u | tr '/' '_'); curl -sL -A "$UA" -m 30 -o "$f.out" -w "$u %{http_code} %{content_type} %{size_download}\n" "https://albionfreemarket.com/$u" >> index.txt || true
-          done
-          curl -sL -A "$UA" -m 30 -o metabattle.html -w "metabattle %{http_code} %{size_download}\n" "https://metabattle.com/wiki/Albion_Online" >> index.txt || true
-          curl -s -m 30 -o spellicon.png -w "spellicon %{http_code} %{content_type} %{size_download}\n" "https://render.albiononline.com/v1/spell/DEADLYSHOT.png" >> index.txt || true
+          curl -sL -A "$UA" -m 60 -o main.js https://albionfreemarket.com/main-XTAVSGFE.js
+          grep -oE '"[^"]{0,60}(api|build)[^"]{0,80}"' main.js | sort -u | head -400 > strings.txt || true
+          curl -sL -A "$UA" -m 60 -o top.html "https://albionfreemarket.com/builds/top"
+          for c in $(grep -oE 'chunk-[A-Z0-9]+\.js' main.js | sort -u); do curl -sL -A "$UA" -m 30 -o $c https://albionfreemarket.com/$c; done
+          cat chunk-*.js 2>/dev/null | grep -oE '"[^"]{0,60}(api|/build)[^"]{0,80}"' | sort -u | head -400 > chunkstrings.txt || true
+          rm -f chunk-*.js
           cd ..; git config user.name probe; git config user.email probe@x
-          git add probe2; git commit -m "probe2 output"; git push
+          git add probe3; git commit -m "probe3 output"; git push
