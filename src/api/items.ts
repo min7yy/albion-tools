@@ -6,14 +6,16 @@ export interface ResourceInfo {
   refined: string
   rawName: string
   refinedName: string
+  /** Highest enchantment the game has for the raw and refined item (stone stops at .3 raw and has no enchanted blocks). */
+  maxEnchant: { raw: number; refined: number }
 }
 
 export const RESOURCES: Record<ResourceKind, ResourceInfo> = {
-  ore: { label: 'Ore → Metal bar', raw: 'ORE', refined: 'METALBAR', rawName: 'Ore', refinedName: 'Metal bar' },
-  hide: { label: 'Hide → Leather', raw: 'HIDE', refined: 'LEATHER', rawName: 'Hide', refinedName: 'Leather' },
-  fiber: { label: 'Fiber → Cloth', raw: 'FIBER', refined: 'CLOTH', rawName: 'Fiber', refinedName: 'Cloth' },
-  wood: { label: 'Wood → Planks', raw: 'WOOD', refined: 'PLANKS', rawName: 'Wood', refinedName: 'Planks' },
-  stone: { label: 'Stone → Stone block', raw: 'ROCK', refined: 'STONEBLOCK', rawName: 'Stone', refinedName: 'Stone block' },
+  ore: { label: 'Ore → Metal bar', raw: 'ORE', refined: 'METALBAR', rawName: 'Ore', refinedName: 'Metal bar', maxEnchant: { raw: 4, refined: 4 } },
+  hide: { label: 'Hide → Leather', raw: 'HIDE', refined: 'LEATHER', rawName: 'Hide', refinedName: 'Leather', maxEnchant: { raw: 4, refined: 4 } },
+  fiber: { label: 'Fiber → Cloth', raw: 'FIBER', refined: 'CLOTH', rawName: 'Fiber', refinedName: 'Cloth', maxEnchant: { raw: 4, refined: 4 } },
+  wood: { label: 'Wood → Planks', raw: 'WOOD', refined: 'PLANKS', rawName: 'Wood', refinedName: 'Planks', maxEnchant: { raw: 4, refined: 4 } },
+  stone: { label: 'Stone → Stone block', raw: 'ROCK', refined: 'STONEBLOCK', rawName: 'Stone', refinedName: 'Stone block', maxEnchant: { raw: 3, refined: 0 } },
 }
 
 export const TIERS = [2, 3, 4, 5, 6, 7, 8] as const

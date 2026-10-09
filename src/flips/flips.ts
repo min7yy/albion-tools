@@ -154,8 +154,8 @@ export interface FlipItem {
 export const RESOURCE_ITEMS: FlipItem[] = Object.values(RESOURCES).flatMap((r) =>
   TIERS.flatMap((tier) =>
     ENCHANTMENTS.filter((ench) => ench === 0 || tier >= MIN_ENCHANT_TIER).flatMap((ench) => [
-      { id: itemId(tier, r.raw, ench), tier, ench },
-      { id: itemId(tier, r.refined, ench), tier, ench },
+      ...(ench <= r.maxEnchant.raw ? [{ id: itemId(tier, r.raw, ench), tier, ench }] : []),
+      ...(ench <= r.maxEnchant.refined ? [{ id: itemId(tier, r.refined, ench), tier, ench }] : []),
     ]),
   ),
 )

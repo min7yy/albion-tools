@@ -92,6 +92,10 @@ describe('flip items', () => {
   it('lists resources and crafted gear', () => {
     expect(RESOURCE_ITEMS.map((i) => i.id)).toContain('T8_PLANKS_LEVEL4@4')
     expect(RESOURCE_ITEMS.map((i) => i.id)).not.toContain('T3_ORE_LEVEL1@1')
+    // Stone has enchanted raw rock up to .3 but no enchanted blocks.
+    expect(RESOURCE_ITEMS.map((i) => i.id)).toContain('T6_ROCK_LEVEL3@3')
+    expect(RESOURCE_ITEMS.map((i) => i.id)).not.toContain('T6_ROCK_LEVEL4@4')
+    expect(RESOURCE_ITEMS.map((i) => i.id)).not.toContain('T6_STONEBLOCK_LEVEL1@1')
     expect(flipItemsFor('bags', 'all').map((i) => i.id)).toContain('T4_BAG')
   })
 

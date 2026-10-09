@@ -1,5 +1,5 @@
 import type { ResourceKind } from '../api/items'
-import type { MarketCity } from '../api/cities'
+import { MARKET_CITIES, type MarketCity } from '../api/cities'
 import {
   BASE_CITY_BONUS,
   FOCUS_BONUS,
@@ -45,11 +45,10 @@ export const REFINING_SPECIALTY: Record<ResourceKind, MarketCity> = {
 /**
  * Resource return rate for refining in a city: 1 - 1 / (1 + bonus / 100).
  * Gives 15.25% base, 36.7% in the specialty city, 43.5% with focus and 53.9% with both.
- * Only royal cities have the base bonus; elsewhere the rate is 0 without focus.
+ * Every market city has the base bonus (craftingmodifiers.xml gives Caerleon and Brecilien 18% too).
  */
 export function returnRate(resource: ResourceKind, city: string, useFocus: boolean): number {
-  const isRoyal = Object.values(REFINING_SPECIALTY).includes(city as MarketCity)
-  let bonus = isRoyal ? BASE_CITY_BONUS : 0
+  let bonus = MARKET_CITIES.includes(city as MarketCity) ? BASE_CITY_BONUS : 0
   if (REFINING_SPECIALTY[resource] === city) bonus += SPECIALTY_BONUS
   if (useFocus) bonus += FOCUS_BONUS
   return returnRateForBonus(bonus)

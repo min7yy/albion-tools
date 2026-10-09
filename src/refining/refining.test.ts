@@ -32,9 +32,10 @@ describe('recipes', () => {
   })
 
   it('covers every resource, tier and enchantment', () => {
-    // Per resource: T2, T3 flat + T4–T8 × 5 enchantment levels = 27
-    expect(allRecipes()).toHaveLength(5 * 27)
+    // Per resource: T2, T3 flat + T4–T8 × 5 enchantment levels = 27, but stone blocks are never enchanted.
+    expect(allRecipes()).toHaveLength(4 * 27 + 7)
     expect(() => getRecipe('ore', 3, 1)).toThrow()
+    expect(() => getRecipe('stone', 4, 1)).toThrow()
     expect(allRefiningItemIds()).toContain('T8_METALBAR_LEVEL4@4')
   })
 })
@@ -45,7 +46,8 @@ describe('settings', () => {
     expect(returnRate('ore', 'Thetford', false)).toBeCloseTo(0.367, 3)
     expect(returnRate('ore', 'Martlock', true)).toBeCloseTo(0.435, 3)
     expect(returnRate('ore', 'Thetford', true)).toBeCloseTo(0.539, 3)
-    expect(returnRate('ore', 'Caerleon', false)).toBe(0)
+    expect(returnRate('ore', 'Caerleon', false)).toBeCloseTo(0.1525, 3)
+    expect(returnRate('ore', 'Black Market', false)).toBe(0)
   })
 
   it('computes station fee from item value', () => {

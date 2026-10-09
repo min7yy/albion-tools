@@ -21,11 +21,10 @@ const MIN_TIER = 2
 const MAX_TIER = 8
 /** Enchanted resources exist from T4 up. */
 export const MIN_ENCHANT_TIER = 4
-const MAX_ENCHANTMENT = 4
 
 export function getRecipe(resource: ResourceKind, tier: number, enchantment = 0): Recipe {
   if (tier < MIN_TIER || tier > MAX_TIER) throw new Error(`No refining recipe for T${tier}`)
-  if (enchantment < 0 || enchantment > MAX_ENCHANTMENT) throw new Error(`Bad enchantment ${enchantment}`)
+  if (enchantment < 0 || enchantment > RESOURCES[resource].maxEnchant.refined) throw new Error(`No T${tier}.${enchantment} ${resource}`)
   if (enchantment > 0 && tier < MIN_ENCHANT_TIER) throw new Error(`T${tier} has no enchanted resources`)
 
   const { raw, refined } = RESOURCES[resource]
@@ -38,12 +37,12 @@ export function getRecipe(resource: ResourceKind, tier: number, enchantment = 0)
   return { resource, tier, enchantment, output: itemId(tier, refined, enchantment), ingredients }
 }
 
-/** Every refining recipe: 5 resources × T2–T8 × enchantments where they exist. */
+/** Every refining recipe: 5 resources × T2–T8 × enchantments where they exist (none for stone). */
 export function allRecipes(): Recipe[] {
   const recipes: Recipe[] = []
   for (const resource of Object.keys(RESOURCES) as ResourceKind[]) {
     for (let tier = MIN_TIER; tier <= MAX_TIER; tier++) {
-      const maxEnchant = tier >= MIN_ENCHANT_TIER ? MAX_ENCHANTMENT : 0
+      const maxEnchant = tier >= MIN_ENCHANT_TIER ? RESOURCES[resource].maxEnchant.refined : 0
       for (let enchantment = 0; enchantment <= maxEnchant; enchantment++) {
         recipes.push(getRecipe(resource, tier, enchantment))
       }
