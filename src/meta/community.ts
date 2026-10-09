@@ -19,8 +19,8 @@ export const COMMUNITY_VERSION = 3
  * Builds counted: at least this many more upvotes than downvotes, and created or edited within
  * MAX_AGE_DAYS, so untested and pre-patch builds drop out. Only about 1 in 9 builds has any vote.
  */
-export const MIN_NET_VOTES = 1
-export const MAX_AGE_DAYS = 365
+const MIN_NET_VOTES = 1
+const MAX_AGE_DAYS = 365
 
 export interface CommunityPicks {
   version?: number
@@ -32,7 +32,7 @@ export interface CommunityPicks {
   consumables?: Record<string, Consumables>
 }
 
-export interface Consumables {
+interface Consumables {
   builds: number
   Potion: Record<string, number>
   Food: Record<string, number>

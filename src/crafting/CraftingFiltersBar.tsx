@@ -1,7 +1,6 @@
-import { CRAFTING_CITIES } from './cities'
+import { BLACK_MARKET, CRAFTING_CITIES } from './evaluate'
 import { ENCHANTMENTS, TIERS } from '../api/items'
 import { CATEGORIES, CATEGORY_LABELS, subLabel } from './data'
-import { BLACK_MARKET } from './evaluate'
 import { QUALITIES, type CraftingFilters, type SellLocation, type SortKey } from './rank'
 
 interface Props {

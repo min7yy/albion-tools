@@ -9,26 +9,26 @@ export const FIGHT_SIZES: FightSize[] = ['s', 'm', 'l']
 export const GEAR_SLOTS = ['OffHand', 'Head', 'Armor', 'Shoes', 'Cape'] as const
 export type GearSlot = (typeof GEAR_SLOTS)[number]
 /** Consumables and the rest, counted per weapon but not part of a loadout. */
-export const EXTRA_SLOTS = ['Potion', 'Food', 'Mount', 'Bag'] as const
+const EXTRA_SLOTS = ['Potion', 'Food', 'Mount', 'Bag'] as const
 export type ExtraSlot = (typeof EXTRA_SLOTS)[number]
-export type TrackedSlot = GearSlot | ExtraSlot
+type TrackedSlot = GearSlot | ExtraSlot
 const TRACKED_SLOTS: TrackedSlot[] = [...GEAR_SLOTS, ...EXTRA_SLOTS]
 
 /** Days of kill data kept; older days drop off. */
-export const WINDOW_DAYS = 28
+const WINDOW_DAYS = 28
 /** Days the summary covers for every weapon. */
-export const SUMMARY_DAYS = 7
+const SUMMARY_DAYS = 7
 /** A weapon with fewer fights than this in SUMMARY_DAYS looks further back, a day at a time. */
 export const LOOKBACK_FIGHTS = 100
 /** Gear items kept per weapon and slot each day, to bound the file size. */
-export const GEAR_PER_DAY = 20
+const GEAR_PER_DAY = 20
 /** Gear items per weapon and slot in the published summary. */
-export const GEAR_IN_SUMMARY = 5
+const GEAR_IN_SUMMARY = 5
 /** Whole loadouts kept per weapon each day (most worn first), to bound the file size. */
-export const BUILDS_PER_DAY = 60
+const BUILDS_PER_DAY = 60
 /** Whole loadouts per weapon in the published summary, plus the top few in each item power bracket. */
-export const BUILDS_IN_SUMMARY = 12
-export const BUILDS_PER_BRACKET = 5
+const BUILDS_IN_SUMMARY = 12
+const BUILDS_PER_BRACKET = 5
 
 /** Item power brackets the guide shows sets for: from (inclusive), to (exclusive). */
 export const IP_BRACKETS: { from: number; to: number; label: string }[] = [
@@ -99,12 +99,12 @@ export function filterStats(stats: WeaponStats, filter: StatsFilter = {}): [numb
 }
 
 /** gear[weapon][slot][item] = times seen together. */
-export type GearCounts = Record<string, Partial<Record<TrackedSlot, Record<string, number>>>>
+type GearCounts = Record<string, Partial<Record<TrackedSlot, Record<string, number>>>>
 
 /** builds[weapon][loadout key] = [wins, losses] per fight size; see loadoutKey. */
-export type BuildCounts = Record<string, Record<string, WeaponStats>>
+type BuildCounts = Record<string, Record<string, WeaponStats>>
 
-export interface DayStats {
+interface DayStats {
   events: number
   weapons: Record<string, WeaponStats>
   gear: GearCounts
@@ -155,7 +155,7 @@ function attackers(event: KillEvent): KillPlayer[] {
 }
 
 /** The gear around a weapon as one key: off-hand, head, armour, shoes and cape bases joined by '|' (empty where bare). */
-export function loadoutKey(player: KillPlayer): string {
+function loadoutKey(player: KillPlayer): string {
   return GEAR_SLOTS.map((slot) => {
     const type = player.Equipment?.[slot]?.Type
     return type ? itemBase(type) : ''
@@ -176,14 +176,14 @@ function sumPairs(into: WeaponStats, from: WeaponStats) {
 }
 
 /** Fights a loadout or weapon appears in, over every fight size and item power. */
-export function totalFights(stats: WeaponStats): number {
+function totalFights(stats: WeaponStats): number {
   let n = 0
   for (const [w, l] of Object.values(stats)) n += w + l
   return n
 }
 
 /** The player's weapon base, or null for gathering tools and bare hands. */
-export function weaponOf(player: KillPlayer): string | null {
+function weaponOf(player: KillPlayer): string | null {
   const main = player.Equipment?.MainHand?.Type
   if (!main) return null
   const weapon = itemBase(main)

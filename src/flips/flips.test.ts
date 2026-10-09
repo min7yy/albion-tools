@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { BLACK_MARKET, DEFAULT_FLIP_FILTERS, flipVolume, flipsForItem, rankFlips } from './flips'
+import { BLACK_MARKET, DEFAULT_FLIP_FILTERS, flipItemsFor, flipMarketsFor, flipsForItem, flipVolume, rankFlips, RESOURCE_ITEMS } from './flips'
 import type { SalesLookup } from '../api/history'
-import { RESOURCE_ITEMS, flipItemsFor } from './items'
-import { flipMarketsFor } from './markets'
 import type { Price } from '../api/prices'
 import type { PriceLookup, TradeSettings } from '../lib/profit'
 
@@ -94,6 +92,10 @@ describe('flip items', () => {
   it('lists resources and crafted gear', () => {
     expect(RESOURCE_ITEMS.map((i) => i.id)).toContain('T8_PLANKS_LEVEL4@4')
     expect(RESOURCE_ITEMS.map((i) => i.id)).not.toContain('T3_ORE_LEVEL1@1')
+    // Stone has enchanted raw rock up to .3 but no enchanted blocks.
+    expect(RESOURCE_ITEMS.map((i) => i.id)).toContain('T6_ROCK_LEVEL3@3')
+    expect(RESOURCE_ITEMS.map((i) => i.id)).not.toContain('T6_ROCK_LEVEL4@4')
+    expect(RESOURCE_ITEMS.map((i) => i.id)).not.toContain('T6_STONEBLOCK_LEVEL1@1')
     expect(flipItemsFor('bags', 'all').map((i) => i.id)).toContain('T4_BAG')
   })
 

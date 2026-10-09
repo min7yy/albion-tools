@@ -1,5 +1,9 @@
 import type { SalesLookup } from '../api/history'
 import { ORDER_SETUP_FEE, SALES_TAX_NO_PREMIUM, SALES_TAX_PREMIUM, type PriceLookup, type TradeSettings } from '../lib/profit'
+import { RESOURCES, TIERS, ENCHANTMENTS, itemId } from '../api/items'
+import { MIN_ENCHANT_TIER } from '../refining/recipes'
+import { CRAFT_RECIPES } from '../crafting/data'
+import { MARKET_CITIES } from '../api/cities'
 
 export const BLACK_MARKET = 'Black Market'
 
@@ -138,4 +142,38 @@ export function rankFlips(flips: Flip[], filters: FlipFilters, now = Date.now(),
 
 export function flipKey(f: Flip): string {
   return `${f.itemId}|${f.buyMarket}|${f.sellMarket}`
+}
+
+export interface FlipItem {
+  id: string
+  tier: number
+  ench: number
+}
+
+/** Raw and refined resources, every tier and enchantment. */
+export const RESOURCE_ITEMS: FlipItem[] = Object.values(RESOURCES).flatMap((r) =>
+  TIERS.flatMap((tier) =>
+    ENCHANTMENTS.filter((ench) => ench === 0 || tier >= MIN_ENCHANT_TIER).flatMap((ench) => [
+      ...(ench <= r.maxEnchant.raw ? [{ id: itemId(tier, r.raw, ench), tier, ench }] : []),
+      ...(ench <= r.maxEnchant.refined ? [{ id: itemId(tier, r.refined, ench), tier, ench }] : []),
+    ]),
+  ),
+)
+
+/** The items a category / sub-category selection covers, before tier filters. */
+export function flipItemsFor(category: string, sub: string): FlipItem[] {
+  if (category === 'resources') return RESOURCE_ITEMS
+  return CRAFT_RECIPES.filter((r) => r.category === category && (sub === 'all' || r.sub === sub)).map((r) => ({
+    id: r.id,
+    tier: r.tier,
+    ench: r.ench,
+  }))
+}
+
+/** Every market the flip finder compares: the royal cities, Caerleon, Brecilien and the Black Market. */
+export const FLIP_MARKETS: string[] = [...MARKET_CITIES, BLACK_MARKET]
+
+/** The Black Market only buys gear, so resource flips skip it. */
+export function flipMarketsFor(category: string): string[] {
+  return category === 'resources' ? FLIP_MARKETS.filter((m) => m !== BLACK_MARKET) : FLIP_MARKETS
 }

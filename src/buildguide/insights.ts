@@ -3,11 +3,11 @@ import type { CommunityPicks } from '../meta/community'
 import { extraItem, MIN_COMMUNITY_BUILDS } from './spells'
 
 /** Fights a weapon needs over the window before it's called rising or falling. */
-export const TREND_MIN_FIGHTS = 30
+const TREND_MIN_FIGHTS = 30
 /** Days at the end of the window compared with the days before them. */
-export const TREND_RECENT_DAYS = 2
+const TREND_RECENT_DAYS = 2
 /** Change in share of all fights that counts as rising (or, inverted, falling). */
-export const TREND_RATIO = 1.3
+const TREND_RATIO = 1.3
 
 /**
  * Whether a weapon is being played more or less lately: its share of all fights over the last

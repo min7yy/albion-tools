@@ -33,14 +33,14 @@ export function stationFeeForValue(itemValue: number, feePer100: number): number
   return (itemValue * 0.1125 * feePer100) / 100
 }
 
-export interface Ingredient {
+interface Ingredient {
   itemId: string
   count: number
   /** Not returned by the resource return rate (artifacts). */
   noReturn?: boolean
 }
 
-export interface IngredientCost extends Ingredient {
+interface IngredientCost extends Ingredient {
   unitPrice: number | null
   /** count × unitPrice, before returns. */
   total: number | null

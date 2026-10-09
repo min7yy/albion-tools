@@ -1,7 +1,6 @@
 import { ENCHANTMENTS, TIERS } from '../api/items'
 import { CATEGORIES, CATEGORY_LABELS, subLabel } from '../crafting/data'
-import type { FlipFilters, FlipSortKey } from './flips'
-import { FLIP_MARKETS } from './markets'
+import { FLIP_MARKETS, type FlipFilters, type FlipSortKey } from './flips'
 
 interface Props {
   filters: FlipFilters

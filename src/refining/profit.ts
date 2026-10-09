@@ -2,7 +2,7 @@ import { evaluateProfit, type PriceLookup, type ProfitResult } from '../lib/prof
 import type { Recipe } from './recipes'
 import { focusCost, returnRate, stationFee, type RefiningSettings } from './settings'
 
-export type { PriceLookup, IngredientCost } from '../lib/profit'
+export type { PriceLookup } from '../lib/profit'
 
 export interface RefiningResult extends ProfitResult {
   recipe: Recipe
