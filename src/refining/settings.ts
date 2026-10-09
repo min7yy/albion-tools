@@ -9,7 +9,6 @@ import {
 } from '../lib/profit'
 
 export type { TradeMode } from '../lib/profit'
-export { BASE_CITY_BONUS, FOCUS_BONUS } from '../lib/profit'
 
 export interface RefiningSettings extends TradeSettings {
   /** Refine with focus (adds a large production bonus). */
@@ -33,7 +32,7 @@ export const DEFAULT_SETTINGS: RefiningSettings = {
 }
 
 /** Extra bonus in the city that specialises in refining this resource. */
-export const SPECIALTY_BONUS = 40
+const SPECIALTY_BONUS = 40
 
 export const REFINING_SPECIALTY: Record<ResourceKind, MarketCity> = {
   ore: 'Thetford',
@@ -60,7 +59,7 @@ export function returnRate(resource: ResourceKind, city: string, useFocus: boole
  * Item value used for station fees. Resources double in value per tier (T4 = 16)
  * and per enchantment level. Nutrition used per craft is 11.25% of the item value.
  */
-export function itemValue(tier: number, enchantment: number): number {
+function itemValue(tier: number, enchantment: number): number {
   return 2 ** tier * 2 ** enchantment
 }
 

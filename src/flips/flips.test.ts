@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { BLACK_MARKET, DEFAULT_FLIP_FILTERS, flipVolume, flipsForItem, rankFlips } from './flips'
+import { BLACK_MARKET, DEFAULT_FLIP_FILTERS, flipItemsFor, flipMarketsFor, flipsForItem, flipVolume, rankFlips, RESOURCE_ITEMS } from './flips'
 import type { SalesLookup } from '../api/history'
-import { RESOURCE_ITEMS, flipItemsFor } from './items'
-import { flipMarketsFor } from './markets'
 import type { Price } from '../api/prices'
 import type { PriceLookup, TradeSettings } from '../lib/profit'
 

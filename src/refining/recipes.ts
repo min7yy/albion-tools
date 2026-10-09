@@ -1,6 +1,6 @@
 import { RESOURCES, itemId, type ResourceKind } from '../api/items'
 
-export interface Ingredient {
+interface Ingredient {
   itemId: string
   count: number
 }
@@ -15,13 +15,13 @@ export interface Recipe {
 }
 
 /** Raw resources needed per refined item, by tier. */
-export const RAW_PER_CRAFT: Record<number, number> = { 2: 1, 3: 2, 4: 2, 5: 3, 6: 4, 7: 5, 8: 5 }
+const RAW_PER_CRAFT: Record<number, number> = { 2: 1, 3: 2, 4: 2, 5: 3, 6: 4, 7: 5, 8: 5 }
 
-export const MIN_TIER = 2
-export const MAX_TIER = 8
+const MIN_TIER = 2
+const MAX_TIER = 8
 /** Enchanted resources exist from T4 up. */
 export const MIN_ENCHANT_TIER = 4
-export const MAX_ENCHANTMENT = 4
+const MAX_ENCHANTMENT = 4
 
 export function getRecipe(resource: ResourceKind, tier: number, enchantment = 0): Recipe {
   if (tier < MIN_TIER || tier > MAX_TIER) throw new Error(`No refining recipe for T${tier}`)

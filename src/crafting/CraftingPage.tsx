@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ServerId } from '../api/servers'
 import { CRAFT_RECIPES, craftItemName } from './data'
-import { BLACK_MARKET, type CraftingSettings } from './evaluate'
+import { BLACK_MARKET, CRAFTING_CITIES, CRAFTING_MARKETS, type CraftingSettings } from './evaluate'
 import {
   DEFAULT_CRAFTING_FILTERS,
   craftingItemIds,
@@ -18,15 +18,13 @@ import { SettingsPanel } from '../components/SettingsPanel'
 import { CraftingFiltersBar } from './CraftingFiltersBar'
 import { CraftingTable } from './CraftingTable'
 import { ProfitBreakdown } from '../components/ProfitBreakdown'
-import { usePrices } from '../hooks/usePrices'
+import { usePrices } from '../hooks/useMarketData'
 import { useStoredState, withDefaults } from '../hooks/useStoredState'
-import { formatAge } from '../lib/format'
+import { ageSummary, formatAge, joinSummary, tradeSummary } from '../lib/format'
 import { useLinkedFilters } from '../hooks/useLinkedFilters'
 import { buildShareUrl, encodeFilters } from '../lib/shareLink'
 import { ShareButton } from '../components/ShareButton'
-import { CRAFTING_CITIES, CRAFTING_MARKETS } from './cities'
 import { HowItWorks, MoreOptions } from '../components/MoreOptions'
-import { ageSummary, joinSummary, tradeSummary } from '../lib/optionsSummary'
 
 const ROW_LIMIT = 200
 const nameOf = craftItemName

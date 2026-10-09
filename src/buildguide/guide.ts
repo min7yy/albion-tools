@@ -2,23 +2,23 @@ import type { CommunityPicks } from '../meta/community'
 import type { FightSize } from '../meta/aggregate'
 import { SLOT_LABELS } from './gear'
 import type { WeaponRow } from './loadouts'
-import { ROLES, weaponRole } from './roles'
+import { ROLES, weaponRole } from './weapons'
 import { spellOptions, type Spell, type SpellKey } from './spells'
 
 /** Fights at a size before the guide says how the weapon does there. */
-export const GUIDE_MIN_FIGHTS = 20
+const GUIDE_MIN_FIGHTS = 20
 
 const SIZE_WORDS: Record<FightSize, string> = { s: 'solo', m: 'small-group (2–5)', l: 'large (6+)' }
 
 /** The skill picked on one key of one piece, with the share of community builds behind it. */
-export interface GuideSkill {
+interface GuideSkill {
   key: SpellKey
   spell: Spell
   picked: number
 }
 
 /** One piece of the set and what to do with it: its recommended skills, or the options when none is clear. */
-export interface GuidePiece {
+interface GuidePiece {
   slot: keyof typeof SLOT_LABELS
   base: string
   name: string

@@ -1,9 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ServerId } from '../api/servers'
-import { WEAPONS } from './weapons'
-import { WEAPON_TYPES, weaponTypeLabel } from './types'
-import { ROLES, weaponRole, type Role } from './roles'
-import { FIGHT_FILTERS, type FightFilter } from './useMeta'
+import { ROLES, WEAPONS, WEAPON_TYPES, weaponRole, weaponTypeLabel, type Role } from './weapons'
+import { FIGHT_FILTERS, useCommunityPicks, useMeta, type FightFilter } from './useMeta'
 import {
   MIN_BRACKET_FIGHTS,
   MIN_FIGHTS,
@@ -14,7 +12,6 @@ import {
   type WeaponRow,
   type SortMode,
 } from './loadouts'
-import { useCommunityPicks, useMeta } from './useMeta'
 import { WeaponDetail } from './WeaponDetail'
 import { trendOf } from './insights'
 import { SetStrip } from './SetStrip'

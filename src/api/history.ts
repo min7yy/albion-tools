@@ -20,7 +20,7 @@ export interface SalesVolume {
 /** Sales volume keyed by `${itemId}|${city}`. */
 export type SalesLookup = (itemId: string, city: string) => SalesVolume | undefined
 
-export const VOLUME_DAYS = 7
+const VOLUME_DAYS = 7
 
 export function buildHistoryUrls(
   apiBase: string,

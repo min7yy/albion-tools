@@ -1,6 +1,7 @@
 import { BASE_CITY_BONUS, FOCUS_BONUS, evaluateProfit, returnRateForBonus, stationFeeForValue, type PriceLookup, type ProfitResult } from '../lib/profit'
 import type { RefiningSettings } from '../refining/settings'
 import { CITY_CRAFTING_BONUSES, type CraftRecipe } from './data'
+import { ROYAL_CITIES } from '../api/cities'
 
 /** Same knobs as refining: focus, premium, station fee, buy/sell mode, return rate override. */
 export type CraftingSettings = RefiningSettings
@@ -46,3 +47,8 @@ export function evaluateCrafting(
   })
   return { ...result, recipe, craftCity }
 }
+
+/** Cities you can craft in (and buy materials from). Brecilien specialises in capes and bags. */
+export const CRAFTING_CITIES: string[] = [...ROYAL_CITIES, 'Caerleon', 'Brecilien']
+/** Every market the crafting page reads prices from. */
+export const CRAFTING_MARKETS: string[] = [...CRAFTING_CITIES, BLACK_MARKET]

@@ -9,15 +9,13 @@ import { SettingsPanel } from '../components/SettingsPanel'
 import { RefiningFiltersBar } from './RefiningFiltersBar'
 import { RefiningTable } from './RefiningTable'
 import { RefiningDetail } from './RefiningDetail'
-import { usePrices } from '../hooks/usePrices'
-import { useSalesVolume } from '../hooks/useSalesVolume'
+import { usePrices, useSalesVolume } from '../hooks/useMarketData'
 import { useStoredState, withDefaults } from '../hooks/useStoredState'
-import { formatAge } from '../lib/format'
+import { ageSummary, formatAge, joinSummary, salesSummary, tradeSummary } from '../lib/format'
 import { useLinkedFilters } from '../hooks/useLinkedFilters'
 import { buildShareUrl, encodeFilters } from '../lib/shareLink'
 import { ShareButton } from '../components/ShareButton'
 import { HowItWorks, MoreOptions } from '../components/MoreOptions'
-import { ageSummary, joinSummary, salesSummary, tradeSummary } from '../lib/optionsSummary'
 
 const RECIPES = allRecipes()
 const ITEM_IDS = allRefiningItemIds(RECIPES)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { filterStats, statKey, type MetaSummary } from '../meta/aggregate'
-import { alternatives, rankBuilds, shrunkWinRate, weaponRow } from './loadouts'
+import { alternatives, rankBuilds, shrunkWinRate, usualGear, weaponRow } from './loadouts'
 import type { Weapon } from './weapons'
 
 const sword: Weapon = { base: 'MAIN_SWORD', name: 'Broadsword', sub: 'sword', twoHanded: false }
@@ -123,5 +123,33 @@ describe('rankBuilds', () => {
     expect(names('popularity')).toEqual(['B', 'A', 'C'])
     // B's 1,000 fights at 50% edge out A's 100 at 70%.
     expect(names('recommended')).toEqual(['B', 'A', 'C'])
+  })
+})
+
+describe('usualGear', () => {
+  const summary: MetaSummary = {
+    server: 'europe',
+    updatedAt: '',
+    from: '',
+    to: '',
+    events: 1,
+    weapons: {
+      '2H_CLAYMORE': {
+        stats: {},
+        gear: {
+          OffHand: [['OFF_SHIELD', 9]],
+          Head: [['NOT_A_REAL_ITEM', 9], ['HEAD_PLATE_SET1', 3]],
+          Armor: [['ARMOR_PLATE_SET1', 5]],
+        },
+      },
+    },
+  }
+
+  it('takes the most worn known item per slot, with no off-hand for two-handed weapons', () => {
+    expect(usualGear(claymore, summary).map((g) => g.base)).toEqual(['HEAD_PLATE_SET1', 'ARMOR_PLATE_SET1', 'SHOES_LEATHER_SET1', 'CAPE'])
+  })
+
+  it("fills a weapon's empty slots with the most common item overall", () => {
+    expect(usualGear(sword, summary).map((g) => g.base)).toEqual(['OFF_SHIELD', 'HEAD_PLATE_SET1', 'ARMOR_PLATE_SET1', 'SHOES_LEATHER_SET1', 'CAPE'])
   })
 })
