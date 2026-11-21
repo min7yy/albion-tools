@@ -1,0 +1,26 @@
+{
+ "passes": 128,
+ "servers": {
+  "americas": {
+   "at": "2026-11-21T18:54:56.410Z",
+   "added": 3336,
+   "pages": 1091,
+   "newestEventId": 1482882604,
+   "newestTime": "2026-11-21T19:39:17.358960700Z"
+  },
+  "europe": {
+   "at": "2026-11-21T18:54:57.331Z",
+   "added": 4819,
+   "pages": 374,
+   "newestEventId": 464455323,
+   "newestTime": "2026-11-21T19:40:32.962622100Z"
+  },
+  "asia": {
+   "at": "2026-11-21T18:54:58.165Z",
+   "added": 819,
+   "pages": 282,
+   "newestEventId": 531330333,
+   "newestTime": "2026-11-21T19:40:19.785379700Z"
+  }
+ }
+}
